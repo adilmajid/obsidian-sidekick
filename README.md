@@ -18,6 +18,7 @@ If you'd like to use Sidekick during its alpha, contact [@adilmajid on Twitter](
 - [ ] Don't auto-scroll
 - [ ] Give LLM basic context, including today's date
 - [ ] Anthropic API support
+- [ ] Explore local LLM options
 
 ### Known bugs
 - [ ] Count of indexed notes can exceed total note count if notes are deleted
