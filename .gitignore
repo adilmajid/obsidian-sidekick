@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.obsidian/
+
+# Ignore embeddings data
+.data/
+.data/*
+
+# Ignore development files
+node_modules/
+.DS_Store
+
+# Ignore personal settings
+data.json
