@@ -17,14 +17,14 @@ export class ChatSidebarSettingTab extends PluginSettingTab {
     async display(): Promise<void> {
         const { containerEl } = this;
         containerEl.empty();
-        containerEl.createEl('h2', { text: 'Sidekick Settings' });
+        containerEl.createEl('h2', { text: 'Sidekick settings' });
 
         // AI Prompts and Context section
-        containerEl.createEl('h3', { text: 'AI Prompts and Context' });
+        containerEl.createEl('h3', { text: 'Prompts and Context' });
 
         new Setting(containerEl)
-            .setName('System Prompt')
-            .setDesc('Customize how the AI assistant behaves and responds.')
+            .setName('System prompt')
+            .setDesc('Customize how Sidekick behaves and responds.')
             .addTextArea(text => text
                 .setValue(this.plugin.settings.systemPrompt)
                 .onChange(async (value) => {
@@ -33,14 +33,13 @@ export class ChatSidebarSettingTab extends PluginSettingTab {
                 }))
             .setClass("system-prompt-setting");
 
-        const personalInfoContainer = containerEl.createDiv('personal-info-container');
-        
-        new Setting(personalInfoContainer)
-            .setName('About You')
-            .setDesc('Share information about yourself that the AI should know. Use [[ to link to your notes.')
+        new Setting(containerEl)
+            .setName('About you')
+            .setDesc('Share information about yourself that Sidekick should know. Use [[ to link to your notes.')
             .addTextArea(text => {
                 this.personalInfoTextArea = text;
                 text
+                    .setPlaceholder('Enter any details you want Sidekick to know...')
                     .setValue(this.plugin.settings.personalInfo)
                     .onChange(async (value) => {
                         this.plugin.settings.personalInfo = value;
@@ -89,10 +88,10 @@ export class ChatSidebarSettingTab extends PluginSettingTab {
             .setClass('personal-info-setting');
 
         new Setting(containerEl)
-            .setName('AI Memory')
-            .setDesc('Information the AI remembers about you and your notes. The AI can update this during conversations.')
+            .setName('Sidekick memory')
+            .setDesc('Information Sidekick remembers about you and your notes. Sidekick can update this during conversations.')
             .addTextArea(text => text
-                .setPlaceholder('AI memory contents...')
+                .setPlaceholder('Sidekick memory contents...')
                 .setValue(this.plugin.settings.memory)
                 .onChange(async (value) => {
                     this.plugin.settings.memory = value;
@@ -101,10 +100,10 @@ export class ChatSidebarSettingTab extends PluginSettingTab {
             .setClass('memory-setting');
 
         // Model Configuration section
-        containerEl.createEl('h3', { text: 'Model Settings' });
+        containerEl.createEl('h3', { text: 'Model settings' });
         
         new Setting(containerEl)
-            .setName('OpenAI Model')
+            .setName('OpenAI model')
             .setDesc('Select which model to use for chat responses.')
             .addDropdown(dropdown => {
                 AVAILABLE_MODELS.forEach(model => {
@@ -119,7 +118,7 @@ export class ChatSidebarSettingTab extends PluginSettingTab {
             });
 
         new Setting(containerEl)
-            .setName('OpenAI API Key')
+            .setName('OpenAI API key')
             .setDesc('Enter your OpenAI API key.')
             .addText(text => text
                 .setPlaceholder('Enter your API key')
@@ -131,13 +130,13 @@ export class ChatSidebarSettingTab extends PluginSettingTab {
                 .inputEl.addClass('chat-sidebar-settings-api-key'));
 
         // Embedding Configuration section
-        containerEl.createEl('h3', { text: 'Embedding Settings' });
+        containerEl.createEl('h3', { text: 'Embedding settings' });
 
         const embeddings = await getAllEmbeddings();
         const totalNotes = this.app.vault.getMarkdownFiles().length;
         
         new Setting(containerEl)
-            .setName('Indexing Status')
+            .setName('Indexing status')
             .setDesc(`${embeddings.length} of ${totalNotes} notes indexed`)
             .addButton(button => {
                 if (this.plugin.isIndexing) {
@@ -159,7 +158,7 @@ export class ChatSidebarSettingTab extends PluginSettingTab {
             });
 
         new Setting(containerEl)
-            .setName('Embedding Update Interval')
+            .setName('Embedding update interval')
             .setDesc('Set how often embeddings are updated (in minutes).')
             .addText(text => text
                 .setPlaceholder('e.g., 60')
@@ -173,7 +172,7 @@ export class ChatSidebarSettingTab extends PluginSettingTab {
                 }));
 
         new Setting(containerEl)
-            .setName('Excluded Folders')
+            .setName('Excluded folders')
             .setDesc('Folders to exclude from indexing (one per line)')
             .addTextArea(text => {
                 text
@@ -192,10 +191,10 @@ export class ChatSidebarSettingTab extends PluginSettingTab {
             .setClass('excluded-folders-setting');
 
         new Setting(containerEl)
-            .setName('Delete All Embeddings')
+            .setName('Delete all embeddings')
             .setDesc('Delete all stored embeddings. Use this if you want to start fresh or free up space.')
             .addButton(button => button
-                .setButtonText('Delete All Embeddings')
+                .setButtonText('Delete all embeddings')
                 .setWarning()
                 .onClick(async () => {
                     const confirmed = await new Promise(resolve => {

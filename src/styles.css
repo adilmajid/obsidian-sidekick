@@ -164,9 +164,15 @@
 }
 
 .system-prompt-setting textarea {
-    width: 300px;
-    min-height: 200px;
-    font-family: monospace;
+    width: 100%;
+    min-width: 300px;
+    min-height: 150px;
+    font-family: var(--font-text);
+    line-height: 1.4;
+    padding: 8px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background-color: var(--background-primary);
 }
 
 .chat-header {
@@ -225,7 +231,8 @@
 }
 
 .personal-info-setting textarea {
-    width: 300px;
+    width: 100%;
+    min-width: 300px;
     min-height: 150px;
     font-family: var(--font-text);
     line-height: 1.4;
@@ -338,7 +345,8 @@
 }
 
 .memory-setting textarea {
-    width: 300px;
+    width: 100%;
+    min-width: 300px;
     min-height: 150px;
     font-family: var(--font-text);
     line-height: 1.4;
@@ -435,7 +443,20 @@
 .memory-setting textarea,
 .chat-sidebar-settings-api-key,
 .excluded-folders-setting textarea {
-    width: 300px;
+    width: 100%;
+    min-width: 300px;
+}
+
+.setting-item .setting-item-info,
+.setting-item .setting-item-control {
+    width: 50%;
+}
+
+@media screen and (max-width: 768px) {
+    .setting-item .setting-item-info,
+    .setting-item .setting-item-control {
+        width: 100%;
+    }
 }
 
 .thread-selector-button {
