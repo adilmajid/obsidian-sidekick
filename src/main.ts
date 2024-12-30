@@ -2,9 +2,15 @@ import { Plugin, WorkspaceLeaf, Notice, App, Modal, Setting, TFile, Vault } from
 import { ChatSidebarView, VIEW_TYPE_CHAT_SIDEBAR } from './ChatSidebarView';
 import { ChatSidebarSettingTab } from './settings-tab';
 import { ChatSidebarSettings, DEFAULT_SETTINGS } from './settings';
-import { generateEmbedding } from './embeddingHelper';
+import { generateEmbedding, initializeOpenAI } from './embeddingHelper';
 import { saveEmbedding, getAllEmbeddings } from './storageService';
 import { ChatThread, ThreadStorage } from './types';
+
+declare global {
+    interface Window {
+        require: (module: string) => any;
+    }
+}
 
 class EmbeddingProgressModal extends Modal {
     progress: number;
@@ -57,9 +63,24 @@ export default class ObsidianChatSidebar extends Plugin {
     embeddingInterval: any;
     private currentNotification: Notice | null = null;
     private settingsTab: ChatSidebarSettingTab | null = null;
+    private safeStorage: any;
 
     async onload() {
         console.log('Loading ObsidianChatSidebar plugin');
+
+        // Initialize safeStorage at plugin load - new approach
+        try {
+            const electron = (window as any).require('electron');
+            if (electron?.remote) {
+                this.safeStorage = electron.remote.safeStorage;
+            } else {
+                this.safeStorage = electron.safeStorage;
+            }
+            console.log('SafeStorage initialized:', !!this.safeStorage);
+        } catch (error) {
+            console.error('Failed to initialize safeStorage:', error);
+            this.safeStorage = null;
+        }
 
         // Register view first
         this.registerView(
@@ -130,13 +151,82 @@ export default class ObsidianChatSidebar extends Plugin {
     }
 
     async loadSettings() {
-        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+        const data = await this.loadData();
+        console.log('Loading settings, encrypted key exists:', !!data?.encryptedApiKey);
+        
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
+
+        // Decrypt API key if it exists
+        if (data?.encryptedApiKey) {
+            try {
+                const decrypted = this.safeStorage.decryptString(
+                    Buffer.from(data.encryptedApiKey, 'base64')
+                );
+                console.log('Successfully decrypted API key, exists:', !!decrypted);
+                this.settings.openAIApiKey = decrypted || '';
+                
+                // Verify the key is set
+                console.log('API key set in settings:', !!this.settings.openAIApiKey);
+                
+                // Re-initialize OpenAI client with decrypted key
+                if (this.settings.openAIApiKey) {
+                    try {
+                        await initializeOpenAI(this.settings.openAIApiKey);
+                        console.log('Successfully re-initialized OpenAI client');
+                    } catch (error) {
+                        console.error('Failed to initialize OpenAI client:', error);
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to decrypt API key:', error);
+                this.settings.openAIApiKey = '';
+            }
+        }
     }
 
     async saveSettings() {
-        await this.saveData(this.settings);
-        // Use DOM event for settings changes
-        dispatchEvent(new CustomEvent('chat:settings-changed'));
+        try {
+            if (this.settings.openAIApiKey?.trim()) {
+                console.log('Attempting to encrypt API key...');
+                
+                // Try to initialize safeStorage again if it failed before
+                if (!this.safeStorage) {
+                    try {
+                        const electron = (window as any).require('electron');
+                        this.safeStorage = electron.safeStorage || electron.remote.safeStorage;
+                    } catch (error) {
+                        console.error('Failed to initialize safeStorage (retry):', error);
+                        throw new Error('Encryption service not available');
+                    }
+                }
+
+                const encrypted = this.safeStorage.encryptString(this.settings.openAIApiKey);
+                console.log('Successfully encrypted API key');
+                
+                const { openAIApiKey, ...otherSettings } = this.settings;
+                const dataToSave = {
+                    ...otherSettings,
+                    encryptedApiKey: encrypted.toString('base64')
+                };
+                console.log('About to save data:', { ...dataToSave, encryptedApiKey: '[REDACTED]' });
+                
+                await this.saveData(dataToSave);
+                console.log('Successfully saved encrypted data');
+            } else {
+                console.log('No API key to encrypt, saving other settings...');
+                const { openAIApiKey, ...otherSettings } = this.settings;
+                await this.saveData(otherSettings);
+                console.log('Successfully saved settings without API key');
+            }
+            
+            dispatchEvent(new CustomEvent('chat:settings-changed'));
+        } catch (error) {
+            console.error('Detailed save error:', error);
+            if (this.settings.openAIApiKey?.trim()) {
+                console.error('Failed to encrypt API key:', error);
+                new Notice('Failed to save API key securely. Please try again.');
+            }
+        }
     }
 
     async startEmbeddingProcess() {
