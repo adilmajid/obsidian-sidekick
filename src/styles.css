@@ -11,7 +11,6 @@
     display: flex;
     flex-direction: column;
     overflow-y: auto;
-    padding: 10px 10px 10px 10px;
     background-color: var(--background-primary);
     border: 1px solid var(--background-modifier-border);
     border-radius: 4px;
@@ -38,7 +37,7 @@
     overflow-y: auto;
     background-color: transparent;
     color: var(--text-normal);
-    font-size: var(--font-text-size);
+    font-size: calc(var(--font-text-size) * 0.85);
     border-radius: 0;
     -webkit-appearance: none;
     appearance: none;
@@ -57,8 +56,9 @@
 
 .chat-send-button {
     padding: 8px;
-    border: none;
-    background: none;
+    border: none !important;
+    background: none !important;
+    box-shadow: none !important;
     color: var(--text-muted);
     cursor: pointer;
     display: flex;
@@ -76,9 +76,9 @@
 
 .chat-message {
     position: relative;
-    margin-bottom: 8px;
-    padding: 8px 12px;
-    border-radius: 12px;
+    margin-bottom: 12px;
+    padding: 12px;
+    border-radius: 8px;
     word-wrap: break-word;
     font-size: calc(var(--font-text-size) * 0.85);
     user-select: text;
@@ -142,8 +142,8 @@
     background-color: var(--interactive-accent);
     color: var(--text-on-accent);
     text-align: left;
-    margin-left: auto;
-    max-width: 80%;
+    max-width: 100%;
+    margin: 0px 10px;
 }
 
 .user-message code,
@@ -183,8 +183,6 @@
     width: 32px;
     height: 32px;
     padding: 6px;
-    border: none;
-    background: none;
     color: var(--text-muted);
     cursor: pointer;
     opacity: 0.5;
@@ -194,6 +192,9 @@
     align-items: center;
     justify-content: center;
     position: relative;
+    border: none !important;
+    background: none !important;
+    box-shadow: none !important;
 }
 
 .chat-reset-button:hover {
@@ -506,14 +507,14 @@
     right: 0px;
     z-index: 1001;
     display: flex;
-    gap: 8px;
+    gap: 0px;
     background: transparent;
     border: none;
     box-shadow: none;
     justify-content: flex-end;
 }
 
-.chat-buttons-container::before {
+/* .chat-buttons-container::before {
     content: '';
     position: absolute;
     top: -5px;
@@ -524,14 +525,12 @@
     opacity: 0.8;
     z-index: -1;
     border-radius: 6px;
-}
+} */
 
 .thread-history-button {
     width: 32px;
     height: 32px;
     padding: 6px;
-    border: none;
-    background: none;
     color: var(--text-muted);
     cursor: pointer;
     opacity: 0.5;
@@ -541,6 +540,9 @@
     align-items: center;
     justify-content: center;
     position: relative;
+    border: none !important;
+    background: none !important;
+    box-shadow: none !important;
 }
 
 .chat-reset-button:hover,
