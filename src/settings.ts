@@ -58,9 +58,14 @@ Remember: Each new question is an opportunity to discover new connections in the
     memory: "",
     excludedFolders: [],
     suggestedPrompts: [
-        "Give me a menu of 5 things I should prioritize today",
+        "What are three small wins I can aim for today?",
+        "Help me reflect on my day. What went well, and what could have gone better?",
         "Write a draft of my weekly review for this week",
-        "Summarize me as a person, including my strengths and growth opportunities."
+        "Summarize me as a person, including my strengths and growth opportunities",
+        "Let's gratitude journal together",
+        "Generate 5 creative writing prompts for me.",
+        "Summarize a concept or book I wrote about recently",
+        "Ask me a relevant thought-provoking question to journal about"
     ]
 };
 
