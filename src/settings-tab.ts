@@ -235,7 +235,7 @@ export class ChatSidebarSettingTab extends PluginSettingTab {
 
         new Setting(containerEl)
             .setName('Suggested prompts')
-            .setDesc('Add prompts to suggest to users (one per line)')
+            .setDesc('Add prompts to suggest to users (one per line). Three will be chosen at random to be displayed in new conversations.')
             .addTextArea(text => {
                 text
                     .setPlaceholder('Enter prompts, one per line')

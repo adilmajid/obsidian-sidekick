@@ -314,6 +314,12 @@ export class ChatSidebarView extends ItemView {
             return;
         }
 
+        // Clear any existing suggested prompts
+        const existingPrompts = chatDisplay.querySelector('.suggested-prompts-container');
+        if (existingPrompts) {
+            existingPrompts.remove();
+        }
+
         // Create new AbortController for this request
         this.currentRequest = new AbortController();
 
@@ -1079,7 +1085,12 @@ Example updates:
             button.addEventListener('click', () => {
                 this.inputField.value = prompt;
                 this.inputField.focus();
-                this.inputField.setSelectionRange(0, prompt.length);
+                this.inputField.setSelectionRange(prompt.length, prompt.length);
+                // Find and click the send button
+                const sendButton = this.containerEl.querySelector('.chat-send-button');
+                if (sendButton instanceof HTMLElement) {
+                    sendButton.click();
+                }
             });
         });
     }

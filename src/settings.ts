@@ -59,7 +59,7 @@ Remember: Each new question is an opportunity to discover new connections in the
     excludedFolders: [],
     suggestedPrompts: [
         "Give me a menu of 5 things I should prioritize today",
-        "Help me write my weekly review",
+        "Write a draft of my weekly review for this week",
         "Summarize me as a person, including my strengths and growth opportunities."
     ]
 };
