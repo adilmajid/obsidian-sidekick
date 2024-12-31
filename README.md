@@ -24,6 +24,7 @@ If you'd like to use Sidekick during its alpha, contact [@adilmajid on Twitter](
 - None currently
 
 ### Shipped
+- [x] Suggested prompts appear in new conversations and user can customize them
 - [x] (bug) Count of indexed notes can exceed total note count if notes are deleted
 - [x] Access past conversations
 - [x] Auto-title past conversations

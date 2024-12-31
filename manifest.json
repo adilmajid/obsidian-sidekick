@@ -1,7 +1,7 @@
 {
 	"id": "sidekick-for-obsidian",
 	"name": "Sidekick for Obsidian",
-	"version": "0.4.2",
+	"version": "0.4.3",
 	"minAppVersion": "0.15.0",
 	"description": "Sidekick lets you chat with your notes. A chatbot for Obsidian.md using semantic search and Retrieval-Augmented Generation (RAG).",
 	"author": "Adil Majid ",
