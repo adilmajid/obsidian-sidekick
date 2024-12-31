@@ -7,6 +7,7 @@ let openai: OpenAI | null = null;
  * @param apiKey OpenAI API key
  */
 export function initializeOpenAI(apiKey: string) {
+    console.log('Initializing OpenAI client with key:', !!apiKey);  // Log 7
     if (!apiKey) {
         throw new Error('OpenAI API key is required');
     }
@@ -15,6 +16,7 @@ export function initializeOpenAI(apiKey: string) {
         apiKey: apiKey,
         dangerouslyAllowBrowser: true
     });
+    console.log('OpenAI client initialized successfully');  // Log 8
 }
 
 /**
@@ -24,6 +26,7 @@ export function initializeOpenAI(apiKey: string) {
  * @returns A promise that resolves to the embedding vector.
  */
 export async function generateEmbedding(text: string, apiKey: string): Promise<number[]> {
+    console.log('Generating embedding with key:', !!apiKey);  // Log 9
     if (!apiKey) {
         throw new Error('OpenAI API key is required');
     }

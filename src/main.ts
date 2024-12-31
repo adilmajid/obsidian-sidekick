@@ -1,68 +1,15 @@
-import { Plugin, WorkspaceLeaf, Notice, App, Modal, Setting, TFile, Vault, Platform } from 'obsidian';
+import { Plugin, WorkspaceLeaf, Notice, App, Modal, TFile, Platform } from 'obsidian';
 import { ChatSidebarView, VIEW_TYPE_CHAT_SIDEBAR } from './ChatSidebarView';
 import { ChatSidebarSettingTab } from './settings-tab';
 import { ChatSidebarSettings, DEFAULT_SETTINGS } from './settings';
 import { generateEmbedding, initializeOpenAI } from './embeddingHelper';
 import { saveEmbedding, getAllEmbeddings } from './storageService';
 import { ChatThread, ThreadStorage } from './types';
+import { EncryptionHelper } from './encryption';
 
 declare global {
     interface Window {
         require: (module: string) => any;
-    }
-}
-
-class EncryptionHelper {
-    private static async generateKey(salt: string): Promise<CryptoKey> {
-        const encoder = new TextEncoder();
-        const keyMaterial = await crypto.subtle.importKey(
-            "raw",
-            encoder.encode(salt),
-            "PBKDF2",
-            false,
-            ["deriveBits", "deriveKey"]
-        );
-        
-        return crypto.subtle.deriveKey(
-            {
-                name: "PBKDF2",
-                salt: encoder.encode(salt),
-                iterations: 100000,
-                hash: "SHA-256"
-            },
-            keyMaterial,
-            { name: "AES-GCM", length: 256 },
-            false,
-            ["encrypt", "decrypt"]
-        );
-    }
-
-    static async encrypt(text: string, salt: string): Promise<string> {
-        const encoder = new TextEncoder();
-        const key = await this.generateKey(salt);
-        const iv = crypto.getRandomValues(new Uint8Array(12));
-        const encrypted = await crypto.subtle.encrypt(
-            { name: "AES-GCM", iv },
-            key,
-            encoder.encode(text)
-        );
-        
-        return JSON.stringify({
-            iv: Array.from(iv),
-            data: Array.from(new Uint8Array(encrypted))
-        });
-    }
-
-    static async decrypt(encryptedData: string, salt: string): Promise<string> {
-        const { iv, data } = JSON.parse(encryptedData);
-        const key = await this.generateKey(salt);
-        const decrypted = await crypto.subtle.decrypt(
-            { name: "AES-GCM", iv: new Uint8Array(iv) },
-            key,
-            new Uint8Array(data)
-        );
-        
-        return new TextDecoder().decode(decrypted);
     }
 }
 
@@ -117,24 +64,9 @@ export default class ObsidianChatSidebar extends Plugin {
     embeddingInterval: any;
     private currentNotification: Notice | null = null;
     private settingsTab: ChatSidebarSettingTab | null = null;
-    private safeStorage: any;
 
     async onload() {
         console.log('Loading ObsidianChatSidebar plugin');
-
-        // Initialize safeStorage at plugin load - new approach
-        try {
-            const electron = (window as any).require('electron');
-            if (electron?.remote) {
-                this.safeStorage = electron.remote.safeStorage;
-            } else {
-                this.safeStorage = electron.safeStorage;
-            }
-            console.log('SafeStorage initialized:', !!this.safeStorage);
-        } catch (error) {
-            console.error('Failed to initialize safeStorage:', error);
-            this.safeStorage = null;
-        }
 
         // Register view first
         this.registerView(
@@ -207,31 +139,20 @@ export default class ObsidianChatSidebar extends Plugin {
     async loadSettings() {
         const data = await this.loadData();
         this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
-
-        if (data?.encryptedApiKey) {
+        
+        console.log('Loading settings, encrypted key exists:', !!this.settings.encryptedApiKey);
+        
+        if (this.settings.encryptedApiKey?.trim()) {
             try {
-                let decryptedKey;
-
-                if (Platform.isDesktopApp) {
-                    // Desktop: Use Electron's safeStorage
-                    if (!this.safeStorage) {
-                        const electron = (window as any).require('electron');
-                        this.safeStorage = electron.safeStorage || electron.remote.safeStorage;
-                    }
-                    decryptedKey = this.safeStorage.decryptString(Buffer.from(data.encryptedApiKey, 'base64'));
-                } else {
-                    // Mobile: Use Web Crypto API
-                    decryptedKey = await EncryptionHelper.decrypt(data.encryptedApiKey, 'sidekick-for-obsidian-v0.4.1');
-                }
-
+                console.log('Attempting to decrypt key...');
+                const decryptedKey = await EncryptionHelper.decrypt(this.settings.encryptedApiKey);
+                console.log('Key decrypted successfully:', !!decryptedKey);
                 this.settings.openAIApiKey = decryptedKey;
-                
-                if (this.settings.openAIApiKey) {
-                    await initializeOpenAI(this.settings.openAIApiKey);
-                }
             } catch (error) {
                 console.error('Failed to decrypt API key:', error);
+                new Notice('Failed to load API key. Please re-enter it in settings.');
                 this.settings.openAIApiKey = '';
+                this.settings.encryptedApiKey = '';
             }
         }
     }
@@ -239,32 +160,25 @@ export default class ObsidianChatSidebar extends Plugin {
     async saveSettings() {
         try {
             if (this.settings.openAIApiKey?.trim()) {
-                const { openAIApiKey, ...otherSettings } = this.settings;
-                let encryptedKey;
-
-                if (Platform.isDesktopApp) {
-                    // Desktop: Use Electron's safeStorage
-                    if (!this.safeStorage) {
-                        const electron = (window as any).require('electron');
-                        this.safeStorage = electron.safeStorage || electron.remote.safeStorage;
-                    }
-                    encryptedKey = this.safeStorage.encryptString(openAIApiKey).toString('base64');
-                } else {
-                    // Mobile: Use Web Crypto API
-                    encryptedKey = await EncryptionHelper.encrypt(openAIApiKey, 'sidekick-for-obsidian-alpha');
-                }
-
+                console.log('Encrypting API key...');
+                const encryptedKey = await EncryptionHelper.encrypt(this.settings.openAIApiKey);
+                console.log('Key encrypted successfully:', !!encryptedKey);
+                
                 await this.saveData({
-                    ...otherSettings,
-                    encryptedApiKey: encryptedKey
+                    ...this.settings,
+                    encryptedApiKey: encryptedKey,
+                    openAIApiKey: '' // Don't store unencrypted key
                 });
+                console.log('Settings saved with encrypted key');
             } else {
-                const { openAIApiKey, ...otherSettings } = this.settings;
+                // If no API key, remove both encrypted and unencrypted versions
+                const { openAIApiKey, encryptedApiKey, ...otherSettings } = this.settings;
                 await this.saveData(otherSettings);
             }
         } catch (error) {
             console.error('Failed to save API key:', error);
             new Notice('Failed to save API key securely. Please try again.');
+            throw error;
         }
     }
 
