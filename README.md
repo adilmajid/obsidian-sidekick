@@ -13,7 +13,6 @@ If you'd like to use Sidekick during its alpha, contact [@adilmajid on Twitter](
 ### Upcoming
 - [ ] Create and save "profiles" for different system prompts
 - [ ] Have a small check mark for “include open note in LLM context”
-- [ ] Improve models use of memory by searching database for context
 - [ ] Stop generating response from model
 - [ ] Don't auto-scroll
 - [ ] Give LLM basic context, including today's date
@@ -22,9 +21,10 @@ If you'd like to use Sidekick during its alpha, contact [@adilmajid on Twitter](
 - [ ] `+++` for Sidekick to continue writing in your note
 
 ### Known bugs
-- [ ] Count of indexed notes can exceed total note count if notes are deleted
+- None currently
 
 ### Shipped
+- [x] (bug) Count of indexed notes can exceed total note count if notes are deleted
 - [x] Access past conversations
 - [x] Auto-title past conversations
 - [x] Mobile support
