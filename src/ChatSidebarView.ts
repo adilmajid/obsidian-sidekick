@@ -1070,7 +1070,7 @@ Example updates:
 
     private addSuggestedPrompts(container: HTMLElement) {
         const promptsContainer = container.createDiv({ cls: 'suggested-prompts-container' });
-        promptsContainer.createDiv({ cls: 'suggested-prompts-header', text: 'Suggested prompts' });
+        promptsContainer.createDiv({ cls: 'suggested-prompts-header', text: 'Suggested' });
         
         const promptsDiv = promptsContainer.createDiv({ cls: 'suggested-prompts' });
         
@@ -1086,11 +1086,6 @@ Example updates:
                 this.inputField.value = prompt;
                 this.inputField.focus();
                 this.inputField.setSelectionRange(prompt.length, prompt.length);
-                // Find and click the send button
-                const sendButton = this.containerEl.querySelector('.chat-send-button');
-                if (sendButton instanceof HTMLElement) {
-                    sendButton.click();
-                }
             });
         });
     }
