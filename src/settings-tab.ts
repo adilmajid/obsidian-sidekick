@@ -133,11 +133,17 @@ export class ChatSidebarSettingTab extends PluginSettingTab {
         containerEl.createEl('h3', { text: 'Embedding settings' });
 
         const embeddings = await getAllEmbeddings();
-        const totalNotes = this.app.vault.getMarkdownFiles().length;
+        const markdownFiles = this.app.vault.getMarkdownFiles();
+        const totalNotes = markdownFiles.length;
         
+        // Only count embeddings that correspond to existing files
+        const validEmbeddings = embeddings.filter(embedding => 
+            markdownFiles.some(file => file.path === embedding.id)
+        );
+
         new Setting(containerEl)
             .setName('Indexing status')
-            .setDesc(`${embeddings.length} of ${totalNotes} notes indexed`)
+            .setDesc(`${validEmbeddings.length} of ${totalNotes} notes indexed`)
             .addButton(button => {
                 if (this.plugin.isIndexing) {
                     button
@@ -146,7 +152,7 @@ export class ChatSidebarSettingTab extends PluginSettingTab {
                         .onClick(() => {
                             this.plugin.stopEmbedding();
                         });
-                } else if (embeddings.length < totalNotes) {
+                } else if (validEmbeddings.length < totalNotes) {
                     button
                         .setButtonText('Index un-indexed notes')
                         .onClick(() => {

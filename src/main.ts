@@ -3,7 +3,7 @@ import { ChatSidebarView, VIEW_TYPE_CHAT_SIDEBAR } from './ChatSidebarView';
 import { ChatSidebarSettingTab } from './settings-tab';
 import { ChatSidebarSettings, DEFAULT_SETTINGS } from './settings';
 import { generateEmbedding, initializeOpenAI } from './embeddingHelper';
-import { saveEmbedding, getAllEmbeddings } from './storageService';
+import { saveEmbedding, getAllEmbeddings, deleteEmbedding } from './storageService';
 import { ChatThread, ThreadStorage } from './types';
 import { EncryptionHelper } from './encryption';
 
@@ -185,47 +185,40 @@ export default class ObsidianChatSidebar extends Plugin {
     async startEmbeddingProcess() {
         if (this.isIndexing) {
             console.log('Already indexing, returning early');
-            new Notice('Indexing is already in progress.');
             return;
         }
 
+        this.isIndexing = true;
+        this.stopIndexing = false;
+
+        // Get all markdown files and current embeddings
+        const files = this.app.vault.getMarkdownFiles();
+        const embeddings = await getAllEmbeddings();
+
+        // Clean up orphaned embeddings
+        for (const embedding of embeddings) {
+            const fileExists = files.some(file => file.path === embedding.id);
+            if (!fileExists) {
+                console.log(`Cleaning up orphaned embedding for ${embedding.id}`);
+                await deleteEmbedding(embedding.id);
+            }
+        }
+
+        // Get files that need processing
+        const filesToProcess = await this.getFilesToProcess(files);
+        
         if (!this.settings.openAIApiKey) {
             new Notice('Please set your OpenAI API key in settings first.');
             return;
         }
 
-        this.isIndexing = true;
-        this.pauseIndexing = false;
-        this.stopIndexing = false;
-
-        const files = this.app.vault.getMarkdownFiles().filter(file => {
-            // Check if the file's path starts with any excluded folder
-            return !this.settings.excludedFolders.some(folder => 
-                file.path.startsWith(folder)
-            );
-        });
-
-        console.log(`Found ${files.length} total markdown files (after exclusions)`);
+        console.log(`Found ${filesToProcess.length} total markdown files (after exclusions)`);
 
         const existingEmbeddings = await getAllEmbeddings();
         console.log(`Found ${existingEmbeddings.length} existing embeddings`);
         
         const embeddingMap = new Map(existingEmbeddings.map(e => [e.id, e]));
         
-        const filesToProcess = files.filter(file => {
-            const existing = embeddingMap.get(file.path);
-            return !existing || file.stat.mtime > (existing.lastModified || 0);
-        });
-
-        console.log(`Need to process ${filesToProcess.length} files`);
-
-        if (filesToProcess.length === 0) {
-            console.log('No files to process, returning early');
-            new Notice('All notes are up to date.');
-            this.isIndexing = false;
-            return;
-        }
-
         let current = 0;
         const total = filesToProcess.length;
 
@@ -402,5 +395,26 @@ export default class ObsidianChatSidebar extends Plugin {
         } catch {
             return [];
         }
+    }
+
+    private async getFilesToProcess(files: TFile[]): Promise<TFile[]> {
+        // Filter out files from excluded folders
+        const filteredFiles = files.filter(file => {
+            return !this.settings.excludedFolders.some(folder => 
+                file.path.startsWith(folder)
+            );
+        });
+
+        console.log(`Found ${filteredFiles.length} files after exclusions`);
+
+        // Get existing embeddings
+        const existingEmbeddings = await getAllEmbeddings();
+        const embeddingMap = new Map(existingEmbeddings.map(e => [e.id, e]));
+
+        // Filter files that need processing (new or modified)
+        return filteredFiles.filter(file => {
+            const existing = embeddingMap.get(file.path);
+            return !existing || file.stat.mtime > (existing.lastModified || 0);
+        });
     }
 }

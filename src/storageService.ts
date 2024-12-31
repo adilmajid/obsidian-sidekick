@@ -31,3 +31,7 @@ export async function getAllEmbeddings(): Promise<Embedding[]> {
     }
     return embeddings;
 }
+
+export async function deleteEmbedding(id: string): Promise<void> {
+    await localforage.removeItem(id);
+}
