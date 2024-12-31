@@ -639,18 +639,6 @@ ${context}`;
                 async (threadId: string) => {
                     await this.loadThread(threadId);
                 },
-                async (threadId: string) => {
-                    this.threads = this.threads.filter(t => t.id !== threadId);
-                    await this.saveThreads();
-                    new Notice('Thread deleted');
-                },
-                async () => {
-                    this.threads = [];
-                    await this.saveThreads();
-                    await this.resetChat();
-                    new Notice('All chat history cleared');
-                },
-                this.openai!,
                 position
             );
 

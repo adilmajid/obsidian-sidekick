@@ -1,4 +1,4 @@
-import { App, Menu, MenuItem, setIcon } from 'obsidian';
+import { App, Menu, MenuItem } from 'obsidian';
 import { ChatThread } from './types';
 import OpenAI from 'openai';
 
@@ -7,9 +7,6 @@ export class ThreadHistoryDropdown {
         private app: App,
         private threads: ChatThread[],
         private onSelect: (threadId: string) => void,
-        private onDelete: (threadId: string) => void,
-        private onDeleteAll: () => void,
-        private openai: OpenAI,
         private position: { x: number, y: number }
     ) {}
 
@@ -41,18 +38,6 @@ export class ThreadHistoryDropdown {
                     // Ensure elements are appended in the correct order
                     container.appendChild(titleEl);
                     container.appendChild(dateEl);
-
-                    const deleteButton = container.createEl('button', {
-                        cls: 'thread-item-delete',
-                        attr: { 'aria-label': 'Delete Thread' }
-                    });
-                    setIcon(deleteButton, 'trash-2');
-                    
-                    deleteButton.addEventListener('click', (e: MouseEvent) => {
-                        e.stopPropagation();
-                        this.onDelete(thread.id);
-                        menu.close();
-                    });
 
                     item.onClick(() => {
                         this.onSelect(thread.id);
