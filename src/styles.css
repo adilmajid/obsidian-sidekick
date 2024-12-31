@@ -554,3 +554,41 @@
 .thread-date {
     margin-left: 0.5em !important;
 }
+
+.suggested-prompts-container {
+    padding: 0px 10px;
+    margin-top: auto;
+}
+
+.suggested-prompts-header {
+    font-size: 0.75em;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.suggested-prompts {
+    display: flex;
+    gap: 8px;
+    flex-direction: column;
+}
+
+.suggested-prompt-button {
+    background-color: var(--background-modifier-hover);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    padding: 6px 8px;
+    font-size: 0.75em;
+    color: var(--text-normal);
+    cursor: pointer;
+    transition: background-color 0.1s ease;
+    text-align: left;
+    justify-content: flex-start;
+    white-space: normal;
+    width: 100%;
+    height: fit-content;
+    box-shadow: none !important;
+}
+
+.suggested-prompt-button:hover {
+    background-color: var(--background-modifier-hover-hover);
+}

@@ -76,6 +76,12 @@ export default class ObsidianChatSidebar extends Plugin {
 
         await this.loadSettings();
 
+        // Migration: Add suggestedPrompts if missing
+        if (!this.settings.suggestedPrompts) {
+            this.settings.suggestedPrompts = DEFAULT_SETTINGS.suggestedPrompts;
+            await this.saveSettings();
+        }
+
         // Add a command to start embedding manually (optional)
         this.addCommand({
             id: 'start-embedding',

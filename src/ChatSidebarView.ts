@@ -139,9 +139,12 @@ export class ChatSidebarView extends ItemView {
                     this.addActionButtons(messageEl, message.content);
                 }
             }
+        } else {
+            // Only show suggested prompts for empty chats
+            this.addSuggestedPrompts(this.chatDisplay);
         }
 
-        // Create the input area with new structure
+        // Create the input area
         const inputContainer = this.containerEl.createEl('div', { cls: 'chat-input-container' });
         
         // Create text input
@@ -604,14 +607,17 @@ ${context}`;
         buttonContainer.appendChild(threadSelector);
         buttonContainer.appendChild(resetButton);
         
-        // Show reset message
-        this.resetMessage = this.chatDisplay.createDiv({ cls: 'chat-message system-message' });
-        await MarkdownRenderer.renderMarkdown(
-            '*New chat thread started.*',
-            this.resetMessage,
-            '',
-            this
-        );
+        // // Show reset message
+        // this.resetMessage = this.chatDisplay.createDiv({ cls: 'chat-message system-message' });
+        // await MarkdownRenderer.renderMarkdown(
+        //     '*New chat thread started.*',
+        //     this.resetMessage,
+        //     '',
+        //     this
+        // );
+
+        // Add suggested prompts to chat display
+        this.addSuggestedPrompts(this.chatDisplay);
     }
 
     // Add new method for creating thread selector
@@ -1041,5 +1047,40 @@ Example updates:
                 await this.saveThreads();
             }
         }
+    }
+
+    private getRandomPrompts(count: number): string[] {
+        const prompts = [...this.plugin.settings.suggestedPrompts];
+        const result: string[] = [];
+        
+        while (result.length < count && prompts.length > 0) {
+            const randomIndex = Math.floor(Math.random() * prompts.length);
+            result.push(prompts[randomIndex]);
+            prompts.splice(randomIndex, 1);
+        }
+        
+        return result;
+    }
+
+    private addSuggestedPrompts(container: HTMLElement) {
+        const promptsContainer = container.createDiv({ cls: 'suggested-prompts-container' });
+        promptsContainer.createDiv({ cls: 'suggested-prompts-header', text: 'Suggested prompts' });
+        
+        const promptsDiv = promptsContainer.createDiv({ cls: 'suggested-prompts' });
+        
+        const randomPrompts = this.getRandomPrompts(3);
+        
+        randomPrompts.forEach(prompt => {
+            const button = promptsDiv.createEl('button', {
+                cls: 'suggested-prompt-button',
+                text: prompt
+            });
+            
+            button.addEventListener('click', () => {
+                this.inputField.value = prompt;
+                this.inputField.focus();
+                this.inputField.setSelectionRange(0, prompt.length);
+            });
+        });
     }
 }

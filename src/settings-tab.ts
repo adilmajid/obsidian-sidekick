@@ -232,6 +232,25 @@ export class ChatSidebarSettingTab extends PluginSettingTab {
                         this.display(); // Refresh the settings view
                     }
                 }));
+
+        new Setting(containerEl)
+            .setName('Suggested prompts')
+            .setDesc('Add prompts to suggest to users (one per line)')
+            .addTextArea(text => {
+                text
+                    .setPlaceholder('Enter prompts, one per line')
+                    .setValue(this.plugin.settings.suggestedPrompts.join('\n'))
+                    .onChange(async (value) => {
+                        this.plugin.settings.suggestedPrompts = value
+                            .split('\n')
+                            .map(prompt => prompt.trim())
+                            .filter(prompt => prompt.length > 0);
+                        await this.plugin.saveSettings();
+                    });
+                text.inputEl.rows = 6;
+                text.inputEl.cols = 50;
+            })
+            .setClass('suggested-prompts-setting');
     }
 }
 

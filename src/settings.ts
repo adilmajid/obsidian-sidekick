@@ -7,6 +7,7 @@ export interface ChatSidebarSettings {
     personalInfo: string;
     memory: string;
     excludedFolders: string[];
+    suggestedPrompts: string[];
 }
 
 export const DEFAULT_SETTINGS: ChatSidebarSettings = {
@@ -55,7 +56,12 @@ When synthesizing information:
 
 Remember: Each new question is an opportunity to discover new connections in the user's notes, even if it seems related to the previous conversation.`,
     memory: "",
-    excludedFolders: []
+    excludedFolders: [],
+    suggestedPrompts: [
+        "Give me a menu of 5 things I should prioritize today",
+        "Help me write my weekly review",
+        "Summarize me as a person, including my strengths and growth opportunities."
+    ]
 };
 
 export interface ModelOption {
