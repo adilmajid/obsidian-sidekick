@@ -179,51 +179,6 @@
     display: none;
 }
 
-.chat-reset-button {
-    width: 32px;
-    height: 32px;
-    padding: 6px;
-    color: var(--text-muted);
-    cursor: pointer;
-    opacity: 0.5;
-    transition: all 150ms ease-in-out;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    border: none !important;
-    background: none !important;
-    box-shadow: none !important;
-}
-
-.chat-reset-button:hover {
-    opacity: 1;
-    color: var(--text-normal);
-    background-color: var(--background-modifier-hover);
-}
-
-.chat-reset-button::after {
-    content: "Start new chat";
-    position: absolute;
-    right: 100%;
-    top: 50%;
-    transform: translateY(-50%);
-    margin-right: 8px;
-    padding: 4px 8px;
-    background-color: var(--background-modifier-hover);
-    border-radius: 4px;
-    font-size: 12px;
-    white-space: nowrap;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.2s ease;
-}
-
-.chat-reset-button:hover::after {
-    opacity: 1;
-}
-
 .system-message {
     align-self: center;
     font-style: italic;
@@ -508,31 +463,18 @@
     z-index: 1001;
     display: flex;
     gap: 0px;
+    padding: 4px;
     background: transparent;
     border: none;
     box-shadow: none;
     justify-content: flex-end;
 }
 
-/* .chat-buttons-container::before {
-    content: '';
-    position: absolute;
-    top: -5px;
-    right: -5px;
-    bottom: -5px;
-    left: -5px;
-    background: transparent;
-    opacity: 0.8;
-    z-index: -1;
-    border-radius: 6px;
-} */
-
-.thread-history-button {
-    width: 32px;
-    height: 32px;
-    padding: 6px;
+.chat-actions-button {
+    width: 28px;
+    height: 28px;
+    padding: 4px;
     color: var(--text-muted);
-    cursor: pointer;
     opacity: 0.5;
     transition: all 150ms ease-in-out;
     border-radius: 4px;
@@ -545,11 +487,14 @@
     box-shadow: none !important;
 }
 
-.chat-reset-button:hover,
-.thread-history-button:hover {
+.chat-actions-button:hover {
     opacity: 1;
     color: var(--text-normal);
-    background-color: var(--background-modifier-hover);
+    background-color: var(--background-modifier-hover) !important;
+}
+
+.chat-actions-button:hover::after {
+    opacity: 1;
 }
 
 .menu-item .thread-item-container {
@@ -616,27 +561,6 @@
 
 .thread-item-delete:hover {
     opacity: 1 !important;
-    color: var(--text-error);
-    background-color: var(--background-modifier-hover);
-}
-
-.clear-history-button {
-    padding: 4px;
-    color: var(--text-muted);
-    opacity: 0.7;
-    background: none;
-    border: none;
-    cursor: pointer;
-    height: 16px;
-    width: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 3px;
-}
-
-.clear-history-button:hover {
-    opacity: 1;
     color: var(--text-error);
     background-color: var(--background-modifier-hover);
 }

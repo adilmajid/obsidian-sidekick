@@ -414,6 +414,9 @@ ${linked.context}\n`;
 MEMORY CONTEXT:
 ${this.plugin.settings.memory}
 
+ABOUT THE USER:
+${this.plugin.settings.personalInfo}
+
 Conversation Analysis:
 ${conversationAnalysis.isFollowUp ? 
     "This is a follow-up question to the previous topic. Consider the previous context while maintaining focus on new information." : 
@@ -750,15 +753,14 @@ CURRENT MEMORY:
 ${this.plugin.settings.memory}
 
 Guidelines:
-1. Look for NEW information about:
+1. Separate the user's query from the context sent to you from the retrieved notes. Look for information in the user's query which is NOT in the note context sent to you.
    - Personal details (relationships, preferences, habits)
    - Projects and work
    - Connections between notes
    - Important dates or facts
-2. Don't repeat information that's already in the user's notes. (If something was sent to you as part of the notes context, then do not add it to memory.)
-3. Don't repeat information that's already in memory
-4. If you find contradictions with existing memory, update with the newer information
-5. Use [[note]] syntax when referencing notes
+2. Don't repeat information that's already in memory
+3. If you find contradictions with existing memory, update with the newer information
+4. Use [[note.md]] syntax when referencing notes
 
 Output Format:
 If you find new information: {"memory_update": "new information"}
@@ -982,7 +984,7 @@ Example updates:
 
     private createResetButton(): HTMLButtonElement {
         const resetButton = document.createElement('button');
-        resetButton.className = 'chat-reset-button';
+        resetButton.className = 'chat-actions-button';
         resetButton.setAttribute('aria-label', 'Start new chat');
         resetButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>`;
         resetButton.addEventListener('click', () => this.resetChat());
@@ -991,7 +993,7 @@ Example updates:
 
     private createThreadHistoryButton(): HTMLButtonElement {
         const threadSelector = document.createElement('button');
-        threadSelector.className = 'thread-history-button';
+        threadSelector.className = 'chat-actions-button';
         threadSelector.setAttribute('aria-label', 'View Chat History');
         threadSelector.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>`;
         
