@@ -151,7 +151,7 @@ export class ChatSidebarView extends ItemView {
         this.inputField = inputContainer.createEl('textarea', { 
             cls: 'chat-input',
             attr: {
-                placeholder: 'Ask your notes anything. Use [[ to mention specific notes.'
+                placeholder: 'Ask Sidekick about your notes. Use [[ to mention specific notes.'
             }
         });
 

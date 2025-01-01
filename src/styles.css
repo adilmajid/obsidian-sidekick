@@ -409,10 +409,12 @@
 .system-prompt-setting textarea,
 .personal-info-setting textarea,
 .memory-setting textarea,
+.suggested-prompts-setting textarea,
 .chat-sidebar-settings-api-key,
 .excluded-folders-setting textarea {
     width: 100%;
     min-width: 300px;
+    min-height: 150px;
 }
 
 .setting-item .setting-item-info,
