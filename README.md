@@ -18,7 +18,7 @@ If you'd like to use Sidekick during its alpha, contact [@adilmajid on Twitter](
 - [ ] Give LLM basic context, including today's date
 - [ ] Anthropic API support
 - [ ] Explore local LLM options
-- [ ] `+++` for Sidekick to continue writing in your note
+- [ ] Command for Sidekick to continue writing in your note
 
 ### Known bugs
 - None known currently
