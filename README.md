@@ -33,3 +33,9 @@ If you'd like to use Sidekick during its alpha, contact [@adilmajid on Twitter](
 - [x] Give the model ability to add to its own memory
 - [x] Add a section for user to add personal details to provide to model as context
 - [x] Allow user to modify system prompt
+
+## Terms & Disclaimer
+
+This plugin is provided as-is, with no guarantees. It’s experimental, so use it at your own risk. Keep in mind the LLM's responses might not always be accurate — double-check important info before relying on it.
+
+By using this plugin, you agree that you’re responsible for how you use it.
