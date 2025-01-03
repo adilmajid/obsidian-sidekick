@@ -6,7 +6,7 @@ Sidekick lets you chat with your notes. A chatbot for Obsidian.md using semantic
 
 Sidekick uses OpenAI for creating embeddings and to power your conversations. You will need an OpenAI API key to use Sidekick.
 
-If you'd like to use Sidekick during its alpha, contact [@adilmajid on Twitter](https://www.twitter.com/adilmajid) or [Telegram](https://t.me/adilmajid).
+If you'd like to use Sidekick during its alpha, contact [@adilmajid on Twitter](https://www.twitter.com/adilmajid) or [Telegram](https://t.me/adilmajid). Please note that Sidekick has only been tested on macOS and iOS so far.
 
 ## Roadmap
 
@@ -21,7 +21,7 @@ If you'd like to use Sidekick during its alpha, contact [@adilmajid on Twitter](
 - [ ] `+++` for Sidekick to continue writing in your note
 
 ### Known bugs
-- None currently
+- None known currently
 
 ### Shipped
 - [x] Suggested prompts appear in new conversations and user can customize them
