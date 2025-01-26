@@ -6,6 +6,11 @@ import { generateEmbedding, initializeOpenAI } from './embeddingHelper';
 import { saveEmbedding, getAllEmbeddings, deleteEmbedding } from './storageService';
 import { ChatThread, ThreadStorage } from './types';
 import { EncryptionHelper } from './encryption';
+import { handleContinueWriting } from './features/ContinueWriting';
+import { EditorView } from '@codemirror/view';
+import OpenAI from 'openai';
+import { MarkdownView, Editor } from 'obsidian';
+import { SearchService } from './services/SearchService';
 
 declare global {
     interface Window {
@@ -64,17 +69,26 @@ export default class ObsidianChatSidebar extends Plugin {
     embeddingInterval: any;
     private currentNotification: Notice | null = null;
     private settingsTab: ChatSidebarSettingTab | null = null;
+    private searchService: SearchService;
 
     async onload() {
         console.log('Loading ObsidianChatSidebar plugin');
+
+        // First load settings
+        await this.loadSettings();
+
+        // Then initialize SearchService with the loaded API key
+        this.searchService = new SearchService(
+            this.app.vault, 
+            this.app.metadataCache,
+            this.settings.openAIApiKey
+        );
 
         // Register view first
         this.registerView(
             VIEW_TYPE_CHAT_SIDEBAR,
             (leaf: WorkspaceLeaf) => new ChatSidebarView(leaf, this)
         );
-
-        await this.loadSettings();
 
         // Migration: Add suggestedPrompts if missing
         if (!this.settings.suggestedPrompts) {
@@ -130,6 +144,70 @@ export default class ObsidianChatSidebar extends Plugin {
                 this.activateView();
             }
         });
+
+        this.registerEditorExtension([
+            EditorView.updateListener.of(update => {
+                if (update.docChanged) {
+                    const changes = update.changes;
+                    
+                    changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
+                        const insertedText = inserted.toString();
+                        console.log('Inserted text:', insertedText);
+                        
+                        // Get the current editor
+                        const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+                        if (!activeView) return;
+                        
+                        const editor = activeView.editor;
+                        const cursor = editor.getCursor();
+                        const currentLine = editor.getLine(cursor.line);
+                        
+                        // Check if the current line ends with +++
+                        if (currentLine.endsWith('+++')) {
+                            console.log('Detected +++ trigger');
+                            
+                            const content = editor.getValue();
+                            
+                            // Remove the +++ trigger
+                            editor.replaceRange(
+                                '', 
+                                { 
+                                    line: cursor.line, 
+                                    ch: cursor.ch - 3 
+                                }, 
+                                cursor
+                            );
+                            
+                            console.log('Launching continue writing modal');
+                            
+                            // Handle the continuation
+                            handleContinueWriting(
+                                this.app,
+                                this.searchService,
+                                new OpenAI({
+                                    apiKey: this.settings.openAIApiKey,
+                                    dangerouslyAllowBrowser: true
+                                }),
+                                content,
+                                cursor.ch
+                            ).then(continuation => {
+                                if (continuation) {
+                                    // Get fresh cursor position after the +++ removal
+                                    const newCursor = editor.getCursor();
+                                    editor.replaceRange(
+                                        '\n' + continuation,
+                                        { 
+                                            line: newCursor.line,
+                                            ch: newCursor.ch
+                                        }
+                                    );
+                                }
+                            });
+                        }
+                    });
+                }
+            })
+        ]);
     }
 
     async onunload() {

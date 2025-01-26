@@ -594,3 +594,23 @@
 .suggested-prompt-button:hover {
     background-color: var(--background-modifier-hover-hover);
 }
+
+.suggestion-button {
+    margin: 4px;
+    padding: 4px 8px;
+    background-color: var(--background-modifier-hover);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.suggestion-button:hover {
+    background-color: var(--background-modifier-hover-hover);
+}
+
+.suggestions {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
