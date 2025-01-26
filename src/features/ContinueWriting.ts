@@ -1,4 +1,4 @@
-import { App, Modal, TextComponent, Notice } from 'obsidian';
+import { App, Modal, TextComponent, Notice, MarkdownView, Editor, View } from 'obsidian';
 import { SearchService } from '../services/SearchService';
 import OpenAI from 'openai';
 
@@ -19,6 +19,9 @@ interface WritingContext {
 
 export class ContinueWritingModal extends Modal {
     private input: TextComponent;
+    private selectedIndex: number = 0;  // Track selected option
+    private suggestionsContainer: HTMLElement;
+    private suggestionButtons: HTMLElement[] = [];
     private searchService: SearchService;
     private openai: OpenAI;
     private currentContent: string;
@@ -38,35 +41,86 @@ export class ContinueWritingModal extends Modal {
         this.currentContent = content;
         this.cursorPosition = cursorPosition;
         
-        // Create input field
-        this.input = new TextComponent(this.contentEl)
-            .setPlaceholder("What do you want Sidekick to write next?");
+        // Style the modal container
+        this.modalEl.addClass('continue-writing-menu');
         
-        // Handle submit
-        this.input.inputEl.addEventListener('keydown', async (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                onSubmit(this.input.getValue());
-                this.close();
-            }
-        });
-
-        // Add autocomplete options
-        const suggestionsContainer = this.contentEl.createDiv('suggestions');
-        AUTOCOMPLETE_OPTIONS.forEach(option => {
-            const btn = suggestionsContainer.createEl('button', {
+        // Create input field
+        const inputContainer = this.contentEl.createDiv('continue-writing-input-container');
+        this.input = new TextComponent(inputContainer)
+            .setPlaceholder("Tell Sidekick how to continue?");
+        
+        // Create suggestions container
+        this.suggestionsContainer = this.contentEl.createDiv('continue-writing-suggestions');
+        
+        // Add options
+        this.suggestionButtons = AUTOCOMPLETE_OPTIONS.map((option, index) => {
+            const btn = this.suggestionsContainer.createEl('button', {
                 text: option,
-                cls: 'suggestion-button'
+                cls: 'continue-writing-option'
             });
+            
+            if (index === 0) btn.addClass('selected');
+            
             btn.addEventListener('click', () => {
                 onSubmit(option);
                 this.close();
             });
+            
+            return btn;
+        });
+
+        // Handle keyboard navigation
+        this.scope.register([], 'ArrowUp', (evt) => {
+            evt.preventDefault();
+            this.moveSelection(-1);
+        });
+
+        this.scope.register([], 'ArrowDown', (evt) => {
+            evt.preventDefault();
+            this.moveSelection(1);
+        });
+
+        // Handle input events
+        this.input.inputEl.addEventListener('keydown', async (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const value = this.input.getValue().trim();
+                onSubmit(value || AUTOCOMPLETE_OPTIONS[this.selectedIndex]);
+                this.close();
+            }
         });
     }
 
+    private moveSelection(direction: number) {
+        // Remove selection from current
+        this.suggestionButtons[this.selectedIndex].removeClass('selected');
+        
+        // Update index
+        this.selectedIndex = (this.selectedIndex + direction + AUTOCOMPLETE_OPTIONS.length) % AUTOCOMPLETE_OPTIONS.length;
+        
+        // Add selection to new
+        this.suggestionButtons[this.selectedIndex].addClass('selected');
+    }
+
     onOpen() {
-        super.onOpen();
+        const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+        if (!activeView) return;
+
+        // Get cursor position
+        const editor = activeView.editor;
+        const cursor = editor.getCursor();
+        
+        // Get the cursor coordinates from the editor's DOM element
+        const cmEditor = (editor as any).cm;  // Access CodeMirror editor
+        if (cmEditor) {
+            const coords = cmEditor.coordsAtPos(editor.posToOffset(cursor));
+            if (coords) {
+                this.modalEl.style.top = `${coords.bottom + 5}px`;
+                this.modalEl.style.left = `${coords.left}px`;
+            }
+        }
+
+        // Focus input but don't select its content
         this.input.inputEl.focus();
     }
 }
