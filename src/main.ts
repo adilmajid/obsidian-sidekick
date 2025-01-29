@@ -6,6 +6,8 @@ import { generateEmbedding, initializeOpenAI } from './embeddingHelper';
 import { saveEmbedding, getAllEmbeddings, deleteEmbedding } from './storageService';
 import { ChatThread, ThreadStorage } from './types';
 import { EncryptionHelper } from './encryption';
+import { AudioControls } from './components/AudioControls';
+import { MarkdownView } from 'obsidian';
 
 declare global {
     interface Window {
@@ -64,6 +66,7 @@ export default class ObsidianChatSidebar extends Plugin {
     embeddingInterval: any;
     private currentNotification: Notice | null = null;
     private settingsTab: ChatSidebarSettingTab | null = null;
+    private audioControls: AudioControls;
 
     async onload() {
         console.log('Loading ObsidianChatSidebar plugin');
@@ -117,7 +120,7 @@ export default class ObsidianChatSidebar extends Plugin {
         this.settingsTab = new ChatSidebarSettingTab(this.app, this);
         this.addSettingTab(this.settingsTab);
 
-        // Add ribbon icon
+        // Just keep the chat sidebar icon
         this.addRibbonIcon('messages-square', 'Open Sidekick Chat', () => {
             this.activateView();
         });
@@ -130,6 +133,53 @@ export default class ObsidianChatSidebar extends Plugin {
                 this.activateView();
             }
         });
+
+        // Register the audio controls for note headers
+        this.registerEvent(
+            this.app.workspace.on('file-open', (file) => {
+                if (!file) {
+                    console.log('No file opened');
+                    return;
+                }
+
+                // Get the active leaf (current note view)
+                const activeLeaf = this.app.workspace.getActiveViewOfType(MarkdownView);
+                if (!activeLeaf) {
+                    console.log('No active markdown view');
+                    return;
+                }
+
+                // Get the actions container (where bookmark and more options buttons are)
+                const actionsEl = activeLeaf.containerEl.querySelector('.view-actions') as HTMLElement;
+                if (!actionsEl) {
+                    console.log('Could not find actions element');
+                    return;
+                }
+
+                console.log('Found actions element:', actionsEl);
+
+                // Create our audio controls container
+                if (!actionsEl.querySelector('.audio-controls')) {
+                    console.log('Creating new audio controls');
+                    this.audioControls = new AudioControls(
+                        this.app,
+                        actionsEl,
+                        this.settings
+                    );
+                    
+                    // Make sure our controls are the first child
+                    if (actionsEl.firstChild) {
+                        actionsEl.insertBefore(this.audioControls.containerEl, actionsEl.firstChild);
+                    } else {
+                        actionsEl.appendChild(this.audioControls.containerEl);
+                    }
+                    
+                    this.audioControls.updateFile(file);
+                } else {
+                    console.log('Audio controls already exist');
+                }
+            })
+        );
     }
 
     async onunload() {
@@ -140,6 +190,7 @@ export default class ObsidianChatSidebar extends Plugin {
         if (this.embeddingInterval) {
             clearInterval(this.embeddingInterval);
         }
+        this.audioControls.unload();
     }
 
     async loadSettings() {

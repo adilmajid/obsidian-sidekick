@@ -1,0 +1,61 @@
+.audio-controls-container {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.audio-control-button {
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    color: var(--text-muted);
+    border-radius: 4px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.audio-control-button {
+    /* Match the existing view-action buttons */
+    background-color: transparent;
+    color: var(--icon-color);
+    padding: var(--size-4-1);
+    margin: var(--size-4-2);
+    cursor: var(--cursor-link);
+    border-radius: var(--radius-s);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.audio-control-button:hover {
+    background-color: var(--background-modifier-hover);
+    color: var(--icon-color-hover);
+}
+
+.playback-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Make sure our controls align with other header icons */
+.view-header-nav {
+    display: flex;
+    align-items: center;
+}
+
+/* Add new spinner animation */
+.spin {
+    animation: spin 1s linear infinite;
+    transform-origin: center;
+}
+
+@keyframes spin {
+    100% {
+        transform: rotate(360deg);
+    }
+} 

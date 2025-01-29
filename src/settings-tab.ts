@@ -3,7 +3,7 @@ import localforage from 'localforage';
 import ObsidianChatSidebar from './main';
 import { ChatSidebarSettings } from './settings';
 import { getAllEmbeddings } from './storageService';
-import { AVAILABLE_MODELS } from './settings';
+import { AVAILABLE_MODELS, AVAILABLE_VOICES } from './settings';
 
 export class ChatSidebarSettingTab extends PluginSettingTab {
     plugin: ObsidianChatSidebar;
@@ -146,6 +146,35 @@ export class ChatSidebarSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 })
                 .inputEl.addClass('chat-sidebar-settings-api-key'));
+
+        // After the OpenAI API key setting and before the Embedding Configuration section
+        new Setting(containerEl)
+            .setName('ElevenLabs API key')
+            .setDesc('Enter your ElevenLabs API key for text-to-speech functionality.')
+            .addText(text => text
+                .setPlaceholder('Enter your ElevenLabs API key')
+                .setValue(this.plugin.settings.elevenLabsApiKey)
+                .onChange(async (value) => {
+                    this.plugin.settings.elevenLabsApiKey = value.trim();
+                    await this.plugin.saveSettings();
+                })
+                .inputEl.addClass('chat-sidebar-settings-elevenlabs-api-key'));
+
+        // Add voice selection dropdown
+        new Setting(containerEl)
+            .setName('ElevenLabs voice')
+            .setDesc('Select which voice to use for text-to-speech.')
+            .addDropdown(dropdown => {
+                AVAILABLE_VOICES.forEach(voice => {
+                    dropdown.addOption(voice.value, voice.label);
+                });
+                return dropdown
+                    .setValue(this.plugin.settings.elevenLabsVoice)
+                    .onChange(async (value) => {
+                        this.plugin.settings.elevenLabsVoice = value;
+                        await this.plugin.saveSettings();
+                    });
+            });
 
         // Embedding Configuration section
         containerEl.createEl('h3', { text: 'Embedding settings' });

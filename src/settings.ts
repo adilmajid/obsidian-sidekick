@@ -8,7 +8,26 @@ export interface ChatSidebarSettings {
     memory: string;
     excludedFolders: string[];
     suggestedPrompts: string[];
+    elevenLabsApiKey: string;
+    elevenLabsVoice: string;
 }
+
+export interface VoiceOption {
+    value: string;
+    label: string;
+}
+
+export const AVAILABLE_VOICES: VoiceOption[] = [
+    { value: '21m00Tcm4TlvDq8ikWAM', label: 'Rachel' },
+    { value: 'AZnzlk1XvdvUeBnXmlld', label: 'Domi' },
+    { value: 'EXAVITQu4vr4xnSDxMaL', label: 'Bella' },
+    { value: 'ErXwobaYiN019PkySvjV', label: 'Antoni' },
+    { value: 'MF3mGyEYCl7XYWbV9V6O', label: 'Elli' },
+    { value: 'TxGEqnHWrfWFTfGW9XjX', label: 'Josh' },
+    { value: 'VR6AewLTigWG4xSOukaG', label: 'Arnold' },
+    { value: 'pNInz6obpgDQGcFmaJgB', label: 'Adam' },
+    { value: 'yoZ06aMxZJJ28mfd3POQ', label: 'Sam' },
+];
 
 export const DEFAULT_SETTINGS: ChatSidebarSettings = {
     openAIApiKey: "",
@@ -66,7 +85,9 @@ Remember: Each new question is an opportunity to discover new connections in the
         "Generate 5 creative writing prompts for me.",
         "Summarize a concept or book I wrote about recently",
         "Ask me a relevant thought-provoking question to journal about"
-    ]
+    ],
+    elevenLabsApiKey: "",
+    elevenLabsVoice: "21m00Tcm4TlvDq8ikWAM",
 };
 
 export interface ModelOption {
