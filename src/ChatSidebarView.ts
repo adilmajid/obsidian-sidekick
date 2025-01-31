@@ -806,11 +806,38 @@ Example updates:
             });
         }
 
+        // Add copy button
+        buttons.push({
+            tooltip: 'Copy to clipboard',
+            onClick: () => {
+                navigator.clipboard.writeText(content);
+                new Notice('Copied to clipboard');
+            }
+        });
+
         // Create buttons
         buttons.forEach(({ tooltip, onClick }) => {
             const button = this.createActionButton(tooltip, onClick);
             buttonsContainer.appendChild(button);
         });
+    }
+
+    private createActionButton(tooltip: string, onClick: () => void): HTMLButtonElement {
+        const button = document.createElement('button');
+        button.className = 'action-button';
+        button.setAttribute('aria-label', tooltip);
+        button.addEventListener('click', onClick);
+
+        // Add appropriate icon based on tooltip
+        if (tooltip === 'Create new') {
+            button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>`;
+        } else if (tooltip === 'Add to open note') {
+            button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11v6"/><path d="M9 14h6"/></svg>`;
+        } else if (tooltip === 'Copy to clipboard') {
+            button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>`;
+        }
+
+        return button;
     }
 
     private setupSelectionMenu() {
@@ -837,18 +864,26 @@ Example updates:
             // Create buttons in same order as hover buttons
             const newNoteButton = this.createActionButton('Create new', () => 
                 this.createNewNote(selectedText));
-            menu.appendChild(newNoteButton);  // Add new note button first
+            menu.appendChild(newNoteButton);
 
             const activeFile = this.app.workspace.getActiveFile();
             if (activeFile) {
                 const appendButton = this.createActionButton('Add to open note', () => 
                     this.appendToCurrentNote(selectedText));
-                menu.appendChild(appendButton);  // Add append button second
+                menu.appendChild(appendButton);
             }
+
+            // Add copy button
+            const copyButton = this.createActionButton('Copy to clipboard', () => {
+                navigator.clipboard.writeText(selectedText);
+                new Notice('Copied to clipboard');
+                menu.remove();  // Remove menu after copying
+            });
+            menu.appendChild(copyButton);
 
             // Position menu at top-right of selection
             menu.style.position = 'fixed';
-            menu.style.left = `${rect.right - menu.offsetWidth}px`;
+            menu.style.left = `${rect.right}px`;
             menu.style.top = `${rect.top}px`;
 
             document.body.appendChild(menu);
@@ -862,22 +897,6 @@ Example updates:
             };
             document.addEventListener('mousedown', hideMenu);
         });
-    }
-
-    private createActionButton(tooltip: string, onClick: () => void): HTMLButtonElement {
-        const button = document.createElement('button');
-        button.className = 'action-button';
-        button.setAttribute('aria-label', tooltip);
-        button.addEventListener('click', onClick);
-
-        // Add appropriate icon based on tooltip
-        if (tooltip === 'Create new') {
-            button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>`;
-        } else if (tooltip === 'Add to open note') {
-            button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11v6"/><path d="M9 14h6"/></svg>`;
-        }
-
-        return button;
     }
 
     private async createNewNote(content: string) {
