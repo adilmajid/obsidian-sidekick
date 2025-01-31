@@ -1070,7 +1070,7 @@ Example updates:
 
     private addSuggestedPrompts(container: HTMLElement) {
         const promptsContainer = container.createDiv({ cls: 'suggested-prompts-container' });
-        promptsContainer.createDiv({ cls: 'suggested-prompts-header', text: 'Suggested' });
+        promptsContainer.createDiv({ cls: 'suggested-prompts-header', text: 'Explore your notes' });
         
         const promptsDiv = promptsContainer.createDiv({ cls: 'suggested-prompts' });
         
