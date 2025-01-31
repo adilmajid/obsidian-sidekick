@@ -837,11 +837,11 @@ Example updates:
                 onClick: () => this.appendToCurrentNote(content)
             });
             
-            // Add insert at cursor button only if there's an active file
-            buttons.push({
-                tooltip: 'Insert at cursor',
-                onClick: () => this.insertAtCursor(content)
-            });
+            // // Add insert at cursor button only if there's an active file
+            // buttons.push({
+            //     tooltip: 'Insert at cursor',
+            //     onClick: () => this.insertAtCursor(content)
+            // });
         }
 
         // Add copy button
