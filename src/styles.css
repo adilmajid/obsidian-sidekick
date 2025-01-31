@@ -164,7 +164,12 @@
     margin-bottom: 10px;
 }
 
-.system-prompt-setting textarea {
+.system-prompt-setting textarea,
+.personal-info-setting textarea,
+.memory-setting textarea,
+.suggested-prompts-setting textarea,
+.chat-sidebar-settings-api-key,
+.excluded-folders-setting textarea {
     width: 100%;
     min-width: 300px;
     min-height: 150px;
@@ -173,7 +178,6 @@
     padding: 8px;
     border: 1px solid var(--background-modifier-border);
     border-radius: 4px;
-    background-color: var(--background-primary);
 }
 
 .chat-header {
@@ -196,7 +200,6 @@
     padding: 8px;
     border: 1px solid var(--background-modifier-border);
     border-radius: 4px;
-    background-color: var(--background-primary);
 }
 
 .personal-info-setting textarea:focus {
@@ -321,7 +324,6 @@
     padding: 8px;
     border: 1px solid var(--background-modifier-border);
     border-radius: 4px;
-    background-color: var(--background-primary);
 }
 
 .memory-setting textarea:focus {
@@ -402,6 +404,10 @@
 .setting-item .setting-item-info,
 .setting-item .setting-item-control {
     width: 50%;
+}
+
+.vertical-tab-content h3 {
+    margin-top: 50px !important;
 }
 
 @media screen and (max-width: 768px) {

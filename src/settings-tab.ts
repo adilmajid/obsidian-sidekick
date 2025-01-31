@@ -17,8 +17,6 @@ export class ChatSidebarSettingTab extends PluginSettingTab {
     async display(): Promise<void> {
         const { containerEl } = this;
         containerEl.empty();
-        containerEl.createEl('h2', { text: 'Sidekick settings' });
-
         // User context section
         containerEl.createEl('h3', { text: 'Personal settings' });
 
@@ -118,7 +116,7 @@ export class ChatSidebarSettingTab extends PluginSettingTab {
             .setClass('memory-setting');
 
         // Model Configuration section
-        containerEl.createEl('h3', { text: 'Model settings' });
+        containerEl.createEl('h3', { text: 'Chat Model settings' });
         
         new Setting(containerEl)
             .setName('OpenAI model')
@@ -145,9 +143,10 @@ export class ChatSidebarSettingTab extends PluginSettingTab {
                     this.plugin.settings.openAIApiKey = value.trim();
                     await this.plugin.saveSettings();
                 })
-                .inputEl.addClass('chat-sidebar-settings-api-key'));
+                .inputEl.addClass('chat-sidebar-settings-elevenlabs-api-key'));
 
-        // After the OpenAI API key setting and before the Embedding Configuration section
+        // ElevenLabs settings
+        containerEl.createEl('h3', { text: 'Voice Model settings' });
         new Setting(containerEl)
             .setName('ElevenLabs API key')
             .setDesc('Enter your ElevenLabs API key for text-to-speech functionality.')
