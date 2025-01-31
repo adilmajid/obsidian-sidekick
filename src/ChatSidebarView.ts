@@ -866,8 +866,8 @@ Example updates:
 
     private createActionButton(tooltip: string, onClick: () => void): HTMLButtonElement {
         const button = document.createElement('button');
-        button.className = 'action-button tooltip-container';
-        button.setAttribute('data-tooltip', tooltip);
+        button.className = 'action-button';
+        button.setAttribute('aria-label', tooltip);
         button.addEventListener('click', onClick);
 
         // Add appropriate icon based on tooltip
