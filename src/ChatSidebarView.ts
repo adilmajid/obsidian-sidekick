@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, Notice, TFile, SuggestModal, App, MarkdownRenderer } from 'obsidian';
+import { ItemView, WorkspaceLeaf, Notice, TFile, SuggestModal, App, MarkdownRenderer, MarkdownView, Editor } from 'obsidian';
 import OpenAI from 'openai';
 import ObsidianChatSidebar from './main';
 import { ChatCompletionMessageParam } from 'openai/resources/chat';
@@ -48,6 +48,10 @@ export class ChatSidebarView extends ItemView {
     private modelSelector: HTMLSelectElement;
     private threads: ChatThread[] = [];
     private currentThreadId: string;
+    private lastKnownCursorPosition: { 
+        file: TFile;
+        position: { line: number; ch: number; }
+    } | null = null;
 
     constructor(leaf: WorkspaceLeaf, plugin: ObsidianChatSidebar) {
         super(leaf);
@@ -232,6 +236,21 @@ export class ChatSidebarView extends ItemView {
 
         // Add selection menu handler
         this.setupSelectionMenu();
+
+        // Only update cursor position when editing a note
+        this.registerEvent(
+            this.app.workspace.on('editor-change', (editor) => {
+                const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+                
+                // Only update if we're in a markdown view (not the chat sidebar)
+                if (view?.file && editor.hasFocus() && view.getViewType() === 'markdown') {
+                    this.lastKnownCursorPosition = {
+                        file: view.file,
+                        position: editor.getCursor()
+                    };
+                }
+            })
+        );
     }
 
     private initializeOpenAI() {
@@ -340,6 +359,10 @@ export class ChatSidebarView extends ItemView {
             '',
             this
         );
+
+        // Add this: Get initial position of user message
+        const userMessageInitialTop = userMessage.offsetTop;
+
         this.chatHistory.push({ role: 'user', content: message });
 
         // Scroll to show the user's message
@@ -482,8 +505,6 @@ ${context}`;
                 
                 // Clear and re-render the markdown
                 markdownRenderingDiv.empty();
-                
-                // Format the response to ensure links are clickable
                 const formattedResponse = this.formatLinks(fullResponse);
                 await MarkdownRenderer.renderMarkdown(
                     formattedResponse,
@@ -492,8 +513,19 @@ ${context}`;
                     this
                 );
                 
-                // Scroll to bottom as response streams in
-                chatDisplay.scrollTop = chatDisplay.scrollHeight;
+                // Modified scrolling logic:
+                // Get positions relative to viewport
+                const userMessageRect = userMessage.getBoundingClientRect();
+                const chatDisplayRect = chatDisplay.getBoundingClientRect();
+                
+                // Calculate if we should scroll
+                // Add a small offset (e.g., 20px) to keep the user message visible
+                const offsetFromTop = 24;
+                const shouldScroll = (userMessageRect.top - offsetFromTop) > chatDisplayRect.top;
+                
+                if (shouldScroll) {
+                    chatDisplay.scrollTop = chatDisplay.scrollHeight;
+                }
             }
 
             // After the response is complete
@@ -804,6 +836,12 @@ Example updates:
                 tooltip: 'Add to open note',
                 onClick: () => this.appendToCurrentNote(content)
             });
+            
+            // Add insert at cursor button only if there's an active file
+            buttons.push({
+                tooltip: 'Insert at cursor',
+                onClick: () => this.insertAtCursor(content)
+            });
         }
 
         // Add copy button
@@ -835,6 +873,8 @@ Example updates:
             button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11v6"/><path d="M9 14h6"/></svg>`;
         } else if (tooltip === 'Copy to clipboard') {
             button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>`;
+        } else if (tooltip === 'Insert at cursor') {
+            button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 22h-1a4 4 0 0 1-4-4V6a4 4 0 0 1 4-4h1"/><path d="M7 22h1a4 4 0 0 0 4-4V6a4 4 0 0 0-4-4H7"/><line x1="7" y1="12" x2="17" y2="12"/></svg>`;
         }
 
         return button;
@@ -1107,5 +1147,38 @@ Example updates:
                 this.inputField.setSelectionRange(prompt.length, prompt.length);
             });
         });
+    }
+
+    private async insertAtCursor(content: string) {
+        const activeFile = this.app.workspace.getActiveFile();
+        
+        if (!activeFile) {
+            new Notice('No active file');
+            return;
+        }
+
+        // If we have a cached position for this file, use it
+        if (this.lastKnownCursorPosition && 
+            this.lastKnownCursorPosition.file.path === activeFile.path) {
+            
+            const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+            if (!view) {
+                new Notice('No active editor');
+                return;
+            }
+
+            const editor = view.editor;
+            
+            try {
+                editor.replaceRange('\n' + content + '\n', this.lastKnownCursorPosition.position);
+                new Notice('Content inserted at cursor position');
+            } catch (error) {
+                console.error('Error inserting at cursor:', error);
+                new Notice('Failed to insert content');
+            }
+        } else {
+            // If we don't have a cached position, fall back to appending at the end
+            await this.appendToCurrentNote(content);
+        }
     }
 }
