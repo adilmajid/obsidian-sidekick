@@ -550,9 +550,9 @@ ${context}`;
             if (fullResponse) {
                 markdownRenderingDiv.empty();
                 
-                // Add context footer
+                // Add context footer with collapsible list
                 const contextFooter = referencedNotes.size > 0 
-                    ? `\n\n---\n<div class="context-footer">\n\nBased on the following context:\n${Array.from(referencedNotes).map(path => `- [[${path}]]`).join('\n')}\n</div>`
+                    ? `\n\n---\n<div class="context-footer">\n\nBased on the following context:\n<ul class="context-list collapsed">${Array.from(referencedNotes).map(path => `<li>[[${path}]]</li>`).join('\n')}</ul>${referencedNotes.size > 5 ? `\n<span class="show-more">Show all (${referencedNotes.size})</span>` : ''}\n</div>`
                     : '';
 
                 const responseWithFooter = `${fullResponse}${contextFooter}`;
@@ -563,6 +563,17 @@ ${context}`;
                     '',
                     this
                 );
+
+                // Add click handler for show more button
+                const showMoreBtn = markdownRenderingDiv.querySelector('.show-more');
+                const contextList = markdownRenderingDiv.querySelector('.context-list');
+                if (showMoreBtn && contextList) {
+                    showMoreBtn.addEventListener('click', () => {
+                        contextList.classList.toggle('collapsed');
+                        (showMoreBtn as HTMLElement).textContent = contextList.classList.contains('collapsed') ? 
+                            `Show all (${referencedNotes.size})` : 'Show less';
+                    });
+                }
 
                 // Add action buttons and process response
                 this.addActionButtons(assistantMessage, fullResponse);
