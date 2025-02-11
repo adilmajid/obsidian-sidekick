@@ -7,6 +7,7 @@ import { AVAILABLE_MODELS } from './settings';
 import { ChatMessage, ChatThread } from './types';
 import { ThreadHistoryDropdown } from './ThreadHistoryDropdown';
 import './events';
+import { DateService } from './services/DateService';
 
 export const VIEW_TYPE_CHAT_SIDEBAR = 'chat-sidebar-view';
 
@@ -449,6 +450,10 @@ ${this.plugin.settings.memory}
 ABOUT THE USER:
 ${this.plugin.settings.personalInfo}
 
+CURRENT DATE AND TIME:
+${DateService.getCurrentDateHumanReadable()}
+ISO Date: ${DateService.getCurrentDate()}
+
 Conversation Analysis:
 ${conversationAnalysis.isFollowUp ? 
     "This is a follow-up question to the previous topic. Consider the previous context while maintaining focus on new information." : 
@@ -465,6 +470,7 @@ Remember to:
     "Focus on the new topic without being constrained by the previous conversation"}
 2. Look for new connections in the provided notes
 3. When referencing notes, always use the double bracket format: [[note name]]
+4. Use the provided current date/time when answering temporal questions (e.g., "today", "this month", etc.)
 
 Here are the relevant notes:
 

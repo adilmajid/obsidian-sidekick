@@ -8,6 +8,7 @@ import { ChatThread, ThreadStorage } from './types';
 import { EncryptionHelper } from './encryption';
 import { AudioControls } from './components/AudioControls';
 import { MarkdownView } from 'obsidian';
+import { DateService } from './services/DateService';
 
 declare global {
     interface Window {
@@ -72,6 +73,7 @@ export default class ObsidianChatSidebar extends Plugin {
 
     async onload() {
         console.log('Loading ObsidianChatSidebar plugin');
+        console.log('Current date from DateService:', DateService.getCurrentDateHumanReadable());
 
         // Register view first
         this.registerView(
