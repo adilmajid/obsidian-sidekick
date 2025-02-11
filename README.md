@@ -11,19 +11,23 @@ If you'd like to use Sidekick during its alpha, contact [@adilmajid on Twitter](
 ## Roadmap
 
 ### Upcoming
-- [ ] Create and save "profiles" for different system prompts
+- [ ] License key integration (LemonSqueezy?)
 - [ ] Have a small check mark for “include open note in LLM context”
 - [ ] Stop generating response from model
-- [ ] Don't auto-scroll
-- [ ] Give LLM basic context, including today's date
-- [ ] Anthropic API support
 - [ ] Explore local LLM options
 - [ ] Command for Sidekick to continue writing in your note
+
+### Maybe later
+- [ ] Create and save "profiles" for different system prompts
+- [ ] Anthropic API support
 
 ### Known bugs
 - None known currently
 
 ### Shipped
+- [x] o3-mini
+- [x] Give LLM basic context, including today's date
+- [x] Don't auto-scroll
 - [x] Suggested prompts appear in new conversations and user can customize them
 - [x] (bug) Count of indexed notes can exceed total note count if notes are deleted
 - [x] Access past conversations
