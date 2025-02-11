@@ -67,6 +67,8 @@ export default class ObsidianChatSidebar extends Plugin {
     private currentNotification: Notice | null = null;
     private settingsTab: ChatSidebarSettingTab | null = null;
     private audioControls: AudioControls;
+    private pendingFileChanges: Set<string> = new Set();
+    private fileChangeTimeout: NodeJS.Timeout | null = null;
 
     async onload() {
         console.log('Loading ObsidianChatSidebar plugin');
@@ -94,27 +96,17 @@ export default class ObsidianChatSidebar extends Plugin {
             },
         });
 
-        // Automatically start embedding on plugin load if embeddings are empty
-        const embeddings = await getAllEmbeddings();
-        if (embeddings.length === 0) {
-            this.startEmbeddingProcess();
-        }
+        // Wait for Obsidian to fully load before accessing files
+        this.app.workspace.onLayoutReady(() => {
+            // Debug vault access after layout is ready
+            console.log('\n=== VAULT ACCESS CHECK (after layout ready) ===');
+            console.log('- Vault object exists:', !!this.app.vault);
+            console.log('- Files in vault:', this.app.vault.getFiles().length);
+            console.log('- Markdown files in vault:', this.app.vault.getMarkdownFiles().length);
 
-        // Listen to vault events for incremental updates
-        this.registerEvent(this.app.vault.on('modify', (file: TFile) => {
-            if (file.extension === 'md') {
-                this.handleFileChange(file);
-            }
-        }));
-
-        this.registerEvent(this.app.vault.on('create', (file: TFile) => {
-            if (file.extension === 'md') {
-                this.handleFileChange(file);
-            }
-        }));
-
-        // Scheduled embedding updates
-        this.scheduleEmbeddingUpdates();
+            // Now check embeddings and start processing if needed
+            this.initializeEmbeddings();
+        });
 
         // Store reference to settings tab
         this.settingsTab = new ChatSidebarSettingTab(this.app, this);
@@ -180,6 +172,43 @@ export default class ObsidianChatSidebar extends Plugin {
                 }
             })
         );
+
+        // Wait for layout to be ready before setting up file listeners
+        this.app.workspace.onLayoutReady(() => {
+            // Listen to vault events for incremental updates
+            this.registerEvent(this.app.vault.on('modify', (file: TFile) => {
+                if (file.extension === 'md') {
+                    this.handleFileChange(file);
+                }
+            }));
+
+            this.registerEvent(this.app.vault.on('create', (file: TFile) => {
+                if (file.extension === 'md') {
+                    this.handleFileChange(file);
+                }
+            }));
+
+            console.log('[Sidekick] File change listeners registered');
+
+            // Schedule embedding updates after layout is ready
+            this.scheduleEmbeddingUpdates();
+        });
+    }
+
+    private async initializeEmbeddings() {
+        // Automatically start embedding on plugin load if embeddings are empty
+        const embeddings = await getAllEmbeddings();
+        if (embeddings.length === 0) {
+            this.startEmbeddingProcess();
+        } else {
+            // If we have embeddings, do a quick check for any files that need updating
+            const files = this.app.vault.getMarkdownFiles();
+            const filesToProcess = await this.getFilesToProcess(files);
+            if (filesToProcess.length > 0) {
+                console.log(`[Sidekick] Found ${filesToProcess.length} files that need updating on startup`);
+                await this.processFiles(filesToProcess);
+            }
+        }
     }
 
     async onunload() {
@@ -245,11 +274,13 @@ export default class ObsidianChatSidebar extends Plugin {
             return;
         }
 
+        console.log('\n=== SIDEKICK START EMBEDDING PROCESS ===');
         this.isIndexing = true;
         this.stopIndexing = false;
 
         // Get all markdown files and current embeddings
         const files = this.app.vault.getMarkdownFiles();
+        console.log(`Found ${files.length} markdown files before processing`);
         const embeddings = await getAllEmbeddings();
 
         // Clean up orphaned embeddings
@@ -261,6 +292,7 @@ export default class ObsidianChatSidebar extends Plugin {
             }
         }
 
+        console.log('About to call getFilesToProcess...');
         // Get files that need processing
         const filesToProcess = await this.getFilesToProcess(files);
         
@@ -360,20 +392,75 @@ export default class ObsidianChatSidebar extends Plugin {
 
     async handleFileChange(file: TFile) {
         if (this.isIndexing) {
-            new Notice('Indexing in progress. Please wait.');
+            console.log('[Sidekick] Indexing in progress, queueing change for:', file.path);
+            this.pendingFileChanges.add(file.path);
             return;
         }
 
-        const content = await this.app.vault.read(file);
-        try {
-            const embedding = await generateEmbedding(content, this.settings.openAIApiKey);
-            await saveEmbedding({ 
-                id: file.path, 
-                embedding,
-                lastModified: file.stat.mtime 
-            });
-        } catch (error) {
-            console.error(`Error embedding ${file.path}:`, error);
+        // Add to pending changes
+        this.pendingFileChanges.add(file.path);
+
+        // Clear existing timeout if it exists
+        if (this.fileChangeTimeout) {
+            clearTimeout(this.fileChangeTimeout);
+        }
+
+        // Set new timeout to process changes
+        this.fileChangeTimeout = setTimeout(async () => {
+            console.log(`[Sidekick] Processing ${this.pendingFileChanges.size} pending file changes`);
+            
+            // Only process if we have changes and aren't already indexing
+            if (this.pendingFileChanges.size > 0 && !this.isIndexing) {
+                this.isIndexing = true;
+                try {
+                    // Get all files that need processing
+                    const pendingFiles = this.app.vault.getMarkdownFiles()
+                        .filter(f => this.pendingFileChanges.has(f.path));
+                    
+                    // Use getFilesToProcess to check which files actually need updating
+                    const filesToProcess = await this.getFilesToProcess(pendingFiles);
+                    console.log(`[Sidekick] After checking timestamps, ${filesToProcess.length} files need processing`);
+                    
+                    // Process only the files that need updating
+                    if (filesToProcess.length > 0) {
+                        await this.processFiles(filesToProcess);
+                    } else {
+                        console.log('[Sidekick] No files need processing after timestamp check');
+                    }
+                } catch (error) {
+                    console.error('[Sidekick] Error processing file changes:', error);
+                } finally {
+                    this.isIndexing = false;
+                    this.pendingFileChanges.clear();
+                }
+            }
+        }, 5000); // Wait 5 seconds for batching
+    }
+
+    private async processFiles(files: TFile[]) {
+        if (!this.settings.openAIApiKey) {
+            console.log('[Sidekick] No API key set, skipping processing');
+            return;
+        }
+
+        console.log(`[Sidekick] Processing ${files.length} files`);
+        for (const file of files) {
+            try {
+                const content = await this.app.vault.read(file);
+                const embedding = await generateEmbedding(content, this.settings.openAIApiKey);
+                await saveEmbedding({ 
+                    id: file.path, 
+                    embedding,
+                    lastModified: file.stat.mtime 
+                });
+                console.log(`[Sidekick] Successfully processed: ${file.path}`);
+                
+                // Add a small delay between files to avoid rate limits
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Increased delay to 1 second
+            } catch (error) {
+                console.error(`[Sidekick] Error processing ${file.path}:`, error);
+                // Continue with next file if there's an error
+            }
         }
     }
 
@@ -381,7 +468,9 @@ export default class ObsidianChatSidebar extends Plugin {
         const intervalMinutes = this.settings.embeddingUpdateInterval;
         const intervalMs = intervalMinutes * 60 * 1000;
 
+        console.log(`Scheduling embedding updates every ${intervalMinutes} minutes`);
         this.embeddingInterval = setInterval(() => {
+            console.log('\n=== SIDEKICK SCHEDULED UPDATE TRIGGERED ===');
             this.startEmbeddingProcess();
         }, intervalMs);
     }
@@ -455,23 +544,108 @@ export default class ObsidianChatSidebar extends Plugin {
     }
 
     private async getFilesToProcess(files: TFile[]): Promise<TFile[]> {
+        console.log('\n=== SIDEKICK EMBEDDING CHECK STARTED ===');
+        console.log('Debug file input:');
+        console.log('- Input files array length:', files.length);
+        console.log('- Direct vault check:', this.app.vault.getMarkdownFiles().length);
+        console.log('- Sample of first file (if exists):', files[0]?.path);
+        
+        console.log(`Total files found: ${files.length}`);
+        
         // Filter out files from excluded folders
         const filteredFiles = files.filter(file => {
-            return !this.settings.excludedFolders.some(folder => 
+            const isExcluded = this.settings.excludedFolders.some(folder => 
                 file.path.startsWith(folder)
             );
+            if (isExcluded) {
+                console.debug(`🚫 Excluded: ${file.path}`);
+            }
+            return !isExcluded;
         });
 
-        console.log(`Found ${filteredFiles.length} files after exclusions`);
+        console.log(`\n📁 Files after exclusion: ${filteredFiles.length}`);
+        if (this.settings.excludedFolders.length > 0) {
+            console.log(`📂 Excluded folders: ${this.settings.excludedFolders.join(', ')}`);
+        }
 
         // Get existing embeddings
         const existingEmbeddings = await getAllEmbeddings();
         const embeddingMap = new Map(existingEmbeddings.map(e => [e.id, e]));
+        console.log(`💾 Existing embeddings: ${existingEmbeddings.length}`);
+
+        // Debug: Log path comparison for first few files
+        console.log('\n🔍 Path Comparison Debug:');
+        console.log('First 3 files in vault:');
+        files.slice(0, 3).forEach(file => {
+            console.log(`  File path: "${file.path}"`);
+            const embedding = embeddingMap.get(file.path);
+            console.log(`  Has embedding? ${!!embedding}`);
+            if (embedding) {
+                console.log(`  Stored ID: "${embedding.id}"`);
+                console.log(`  Paths match? ${file.path === embedding.id}`);
+                console.log(`  Modified time: ${file.stat.mtime}`);
+                console.log(`  Embedding time: ${embedding.lastModified}`);
+            }
+            console.log('');
+        });
+
+        console.log('First 3 embeddings in storage:');
+        existingEmbeddings.slice(0, 3).forEach(emb => {
+            console.log(`  Stored ID: "${emb.id}"`);
+            const file = files.find(f => f.path === emb.id);
+            console.log(`  Found matching file? ${!!file}`);
+            if (file) {
+                console.log(`  File path: "${file.path}"`);
+                console.log(`  Modified time: ${file.stat.mtime}`);
+                console.log(`  Embedding time: ${emb.lastModified}`);
+            }
+            console.log('');
+        });
 
         // Filter files that need processing (new or modified)
-        return filteredFiles.filter(file => {
+        const newFiles: string[] = [];
+        const modifiedFiles: string[] = [];
+        
+        const filesToProcess = filteredFiles.filter(file => {
             const existing = embeddingMap.get(file.path);
-            return !existing || file.stat.mtime > (existing.lastModified || 0);
+            
+            // If no existing embedding, it's a new file
+            if (!existing) {
+                newFiles.push(file.path);
+                return true;
+            }
+
+            // Compare timestamps - normalize to seconds to avoid millisecond differences
+            const fileTimestamp = Math.floor(file.stat.mtime / 1000);
+            const embeddingTimestamp = Math.floor((existing.lastModified || 0) / 1000);
+            const needsProcessing = fileTimestamp > embeddingTimestamp;
+            
+            if (needsProcessing) {
+                const modifiedTime = new Date(file.stat.mtime).toISOString();
+                const lastEmbedTime = new Date(existing.lastModified || 0).toISOString();
+                modifiedFiles.push(
+                    `${file.path}\n    modified: ${modifiedTime} (${file.stat.mtime})\n    embedded: ${lastEmbedTime} (${existing.lastModified})`
+                );
+            }
+            
+            return needsProcessing;
         });
+
+        // Print summary
+        console.log('\n=== EMBEDDING CHECK SUMMARY ===');
+        console.log(`🆕 New files to process: ${newFiles.length}`);
+        if (newFiles.length > 0) {
+            console.log('New files:');
+            newFiles.forEach(file => console.log(`  - ${file}`));
+        }
+        
+        console.log(`\n📝 Modified files to process: ${modifiedFiles.length}`);
+        if (modifiedFiles.length > 0) {
+            console.log('Modified files:');
+            modifiedFiles.forEach(file => console.log(`  - ${file}`));
+        }
+        
+        console.log('\n=== EMBEDDING CHECK COMPLETED ===\n');
+        return filesToProcess;
     }
 }
