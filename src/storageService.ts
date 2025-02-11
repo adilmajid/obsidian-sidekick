@@ -6,25 +6,26 @@ export interface Embedding {
     lastModified?: number;
 }
 
-// Initialize localforage
-localforage.config({
+// Create a dedicated store for embeddings
+const embeddingStore = localforage.createInstance({
     name: 'ObsidianChatSidebar',
     storeName: 'embeddings',
+    description: 'Store for note embeddings'
 });
 
 export async function saveEmbedding(embedding: Embedding): Promise<void> {
-    await localforage.setItem(embedding.id, embedding);
+    await embeddingStore.setItem(embedding.id, embedding);
 }
 
 export async function getEmbedding(id: string): Promise<Embedding | null> {
-    return await localforage.getItem<Embedding>(id);
+    return await embeddingStore.getItem<Embedding>(id);
 }
 
 export async function getAllEmbeddings(): Promise<Embedding[]> {
-    const keys = await localforage.keys();
+    const keys = await embeddingStore.keys();
     const embeddings: Embedding[] = [];
     for (const key of keys) {
-        const emb = await localforage.getItem<Embedding>(key);
+        const emb = await embeddingStore.getItem<Embedding>(key);
         if (emb) {
             embeddings.push(emb);
         }
@@ -33,5 +34,5 @@ export async function getAllEmbeddings(): Promise<Embedding[]> {
 }
 
 export async function deleteEmbedding(id: string): Promise<void> {
-    await localforage.removeItem(id);
+    await embeddingStore.removeItem(id);
 }

@@ -9,6 +9,7 @@ import { EncryptionHelper } from './encryption';
 import { AudioControls } from './components/AudioControls';
 import { MarkdownView } from 'obsidian';
 import { DateService } from './services/DateService';
+import { DateIndex } from './services/DateIndex';
 
 declare global {
     interface Window {
@@ -70,10 +71,14 @@ export default class ObsidianChatSidebar extends Plugin {
     private audioControls: AudioControls;
     private pendingFileChanges: Set<string> = new Set();
     private fileChangeTimeout: NodeJS.Timeout | null = null;
+    dateIndex: DateIndex;
 
     async onload() {
         console.log('Loading ObsidianChatSidebar plugin');
         console.log('Current date from DateService:', DateService.getCurrentDateHumanReadable());
+
+        // Initialize DateIndex
+        this.dateIndex = new DateIndex(this.app.vault);
 
         // Register view first
         this.registerView(
@@ -198,19 +203,54 @@ export default class ObsidianChatSidebar extends Plugin {
     }
 
     private async initializeEmbeddings() {
-        // Automatically start embedding on plugin load if embeddings are empty
-        const embeddings = await getAllEmbeddings();
-        if (embeddings.length === 0) {
-            this.startEmbeddingProcess();
-        } else {
-            // If we have embeddings, do a quick check for any files that need updating
-            const files = this.app.vault.getMarkdownFiles();
-            const filesToProcess = await this.getFilesToProcess(files);
-            if (filesToProcess.length > 0) {
-                console.log(`[Sidekick] Found ${filesToProcess.length} files that need updating on startup`);
-                await this.processFiles(filesToProcess);
+        // Get all files that need processing
+        const files = this.app.vault.getMarkdownFiles();
+        console.log(`Found ${files.length} markdown files to check`);
+
+        // Check both embedding and date indices
+        const [embeddingResults, dateResults] = await Promise.all([
+            this.getFilesToProcess(files),
+            this.getFilesToProcessDates(files)
+        ]);
+
+        // Process embeddings if needed
+        if (embeddingResults.length > 0) {
+            console.log(`[Sidekick] Found ${embeddingResults.length} files that need embedding updates`);
+            await this.processFiles(embeddingResults);
+        }
+
+        // Process date indexing if needed
+        if (dateResults.length > 0) {
+            console.log(`[Sidekick] Found ${dateResults.length} files that need date indexing`);
+            for (const file of dateResults) {
+                await this.dateIndex.indexNote(file);
             }
         }
+    }
+
+    private async getFilesToProcessDates(files: TFile[]): Promise<TFile[]> {
+        // Filter out files from excluded folders first
+        const filteredFiles = files.filter(file => {
+            const isExcluded = this.settings.excludedFolders.some(folder => 
+                file.path.startsWith(folder)
+            );
+            return !isExcluded;
+        });
+
+        // Get all currently indexed files
+        const indexedFiles = await this.dateIndex.getAllIndexed();
+        const indexMap = new Map(indexedFiles.map(f => [f.id, f]));
+
+        // Find files that need processing
+        const filesToProcess: TFile[] = [];
+        for (const file of filteredFiles) {
+            const needsIndexing = await this.dateIndex.needsIndexing(file);
+            if (needsIndexing) {
+                filesToProcess.push(file);
+            }
+        }
+
+        return filesToProcess;
     }
 
     async onunload() {
@@ -419,15 +459,22 @@ export default class ObsidianChatSidebar extends Plugin {
                     const pendingFiles = this.app.vault.getMarkdownFiles()
                         .filter(f => this.pendingFileChanges.has(f.path));
                     
-                    // Use getFilesToProcess to check which files actually need updating
-                    const filesToProcess = await this.getFilesToProcess(pendingFiles);
-                    console.log(`[Sidekick] After checking timestamps, ${filesToProcess.length} files need processing`);
+                    // Check both indices
+                    const [embeddingResults, dateResults] = await Promise.all([
+                        this.getFilesToProcess(pendingFiles),
+                        this.getFilesToProcessDates(pendingFiles)
+                    ]);
                     
-                    // Process only the files that need updating
-                    if (filesToProcess.length > 0) {
-                        await this.processFiles(filesToProcess);
-                    } else {
-                        console.log('[Sidekick] No files need processing after timestamp check');
+                    // Process embeddings if needed
+                    if (embeddingResults.length > 0) {
+                        await this.processFiles(embeddingResults);
+                    }
+
+                    // Process date indexing if needed
+                    if (dateResults.length > 0) {
+                        for (const file of dateResults) {
+                            await this.dateIndex.indexNote(file);
+                        }
                     }
                 } catch (error) {
                     console.error('[Sidekick] Error processing file changes:', error);
@@ -649,5 +696,70 @@ export default class ObsidianChatSidebar extends Plugin {
         
         console.log('\n=== EMBEDDING CHECK COMPLETED ===\n');
         return filesToProcess;
+    }
+
+    private async testDateIndex() {
+        console.log('\n=== TESTING DATE INDEX ===');
+        
+        try {
+            // 1. First rebuild the index
+            console.log('Building date index...');
+            await this.dateIndex.rebuildIndex();
+            
+            // 2. Get all markdown files for testing
+            const files = this.app.vault.getMarkdownFiles();
+            console.log(`Total files in vault: ${files.length}`);
+
+            // Debug: Print first 3 files
+            console.log('\nFirst 3 files in vault:');
+            files.slice(0, 3).forEach(file => {
+                console.log(`- ${file.path} (modified: ${new Date(file.stat.mtime).toLocaleString()})`);
+            });
+
+            // 3. Test today's files
+            console.log('\nTesting today filter:');
+            const todayFiles = await this.dateIndex.filterByDate(files, { relative: 'today' });
+            console.log(`Files from today: ${todayFiles.length}`);
+            todayFiles.slice(0, 3).forEach(file => {
+                console.log(`- ${file.path} (modified: ${new Date(file.stat.mtime).toLocaleString()})`);
+            });
+
+            // 4. Test this month's files
+            console.log('\nTesting this month filter:');
+            const thisMonthFiles = await this.dateIndex.filterByDate(files, { relative: 'this_month' });
+            console.log(`Files from this month: ${thisMonthFiles.length}`);
+            thisMonthFiles.slice(0, 3).forEach(file => {
+                console.log(`- ${file.path} (modified: ${new Date(file.stat.mtime).toLocaleString()})`);
+            });
+
+            // 5. Test a specific date range
+            const lastMonth = new Date();
+            lastMonth.setMonth(lastMonth.getMonth() - 1);
+            console.log('\nTesting last 30 days filter:');
+            const rangeFiles = await this.dateIndex.filterByDate(files, {
+                start: lastMonth,
+                end: new Date()
+            });
+            console.log(`Files from last 30 days: ${rangeFiles.length}`);
+            rangeFiles.slice(0, 3).forEach(file => {
+                console.log(`- ${file.path} (modified: ${new Date(file.stat.mtime).toLocaleString()})`);
+            });
+
+            // 6. Test metadata for a specific file
+            if (files.length > 0) {
+                const testFile = files[0];
+                console.log('\nTesting metadata extraction for:', testFile.path);
+                const metadata = await this.dateIndex.getMetadata(testFile.path);
+                console.log('Metadata:', {
+                    created: metadata ? new Date(metadata.createdAt).toLocaleString() : 'N/A',
+                    modified: metadata ? new Date(metadata.modifiedAt).toLocaleString() : 'N/A',
+                    contentDates: metadata ? metadata.contentDates.map(d => new Date(d).toLocaleString()) : []
+                });
+            }
+
+            console.log('\n=== DATE INDEX TEST COMPLETE ===\n');
+        } catch (error) {
+            console.error('Error testing date index:', error);
+        }
     }
 }

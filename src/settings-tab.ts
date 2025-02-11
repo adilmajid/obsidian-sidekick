@@ -243,16 +243,16 @@ export class ChatSidebarSettingTab extends PluginSettingTab {
             .setClass('excluded-folders-setting');
 
         new Setting(containerEl)
-            .setName('Delete all embeddings')
-            .setDesc('Delete all stored embeddings. Use this if you want to start fresh or free up space.')
+            .setName('Delete all indices')
+            .setDesc('Delete all stored embeddings and date indices. Use this if you want to start fresh or free up space.')
             .addButton(button => button
-                .setButtonText('Delete all embeddings')
+                .setButtonText('Delete all indices')
                 .setWarning()
                 .onClick(async () => {
                     const confirmed = await new Promise(resolve => {
                         const modal = new Modal(this.app);
                         modal.titleEl.setText('Confirm Deletion');
-                        modal.contentEl.setText('Are you sure you want to delete all embeddings? This cannot be undone.');
+                        modal.contentEl.setText('Are you sure you want to delete all embeddings and date indices? This cannot be undone.');
                         
                         modal.contentEl.createDiv('modal-button-container', (div: HTMLDivElement) => {
                             div.createEl('button', { text: 'Cancel' })
@@ -273,8 +273,50 @@ export class ChatSidebarSettingTab extends PluginSettingTab {
                     });
 
                     if (confirmed) {
+                        // Configure localforage to use embeddings store before clearing
+                        localforage.config({
+                            name: 'ObsidianChatSidebar',
+                            storeName: 'embeddings'
+                        });
                         await localforage.clear();
-                        new Notice('All embeddings have been deleted');
+                        new Notice('All indices have been deleted');
+                        
+                        // Ask user if they want to rebuild indices now
+                        const rebuildNow = await new Promise(resolve => {
+                            const modal = new Modal(this.app);
+                            modal.titleEl.setText('Rebuild Indices?');
+                            modal.contentEl.setText('Would you like to rebuild the indices now? This may take a while depending on the size of your vault.');
+                            
+                            modal.contentEl.createDiv('modal-button-container', (div: HTMLDivElement) => {
+                                div.createEl('button', { text: 'Later' })
+                                    .onclick = () => {
+                                        modal.close();
+                                        resolve(false);
+                                    };
+                                div.createEl('button', { 
+                                    cls: 'mod-cta', 
+                                    text: 'Rebuild Now' 
+                                }).onclick = () => {
+                                    modal.close();
+                                    resolve(true);
+                                };
+                            });
+                            
+                            modal.open();
+                        });
+
+                        if (rebuildNow) {
+                            // Start with date index as it's usually faster
+                            new Notice('Building date index...');
+                            await this.plugin.dateIndex.rebuildIndex();
+                            new Notice('Date index rebuilt. Starting embedding process...');
+                            
+                            // Then start the embedding process
+                            this.plugin.startEmbeddingProcess();
+                        } else {
+                            new Notice('You can rebuild indices later from the settings tab');
+                        }
+                        
                         this.display(); // Refresh the settings view
                     }
                 }));

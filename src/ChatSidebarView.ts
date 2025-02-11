@@ -3,6 +3,7 @@ import OpenAI from 'openai';
 import ObsidianChatSidebar from './main';
 import { ChatCompletionMessageParam } from 'openai/resources/chat';
 import { SearchService, SearchResult, LinkedContext } from './services/SearchService';
+import { DateAwareSearchService, DateAwareSearchResult } from './services/DateAwareSearchService';
 import { AVAILABLE_MODELS } from './settings';
 import { ChatMessage, ChatThread } from './types';
 import { ThreadHistoryDropdown } from './ThreadHistoryDropdown';
@@ -46,6 +47,7 @@ export class ChatSidebarView extends ItemView {
     private currentRequest: AbortController | null = null;
     private resetMessage: HTMLElement | null = null;
     private searchService: SearchService;
+    private dateAwareSearchService: DateAwareSearchService;
     private modelSelector: HTMLSelectElement;
     private threads: ChatThread[] = [];
     private currentThreadId: string;
@@ -58,6 +60,13 @@ export class ChatSidebarView extends ItemView {
         super(leaf);
         this.plugin = plugin;
         this.searchService = new SearchService(
+            this.app.vault,
+            this.app.metadataCache,
+            plugin.settings.openAIApiKey
+        );
+        this.dateAwareSearchService = new DateAwareSearchService(
+            this.searchService,
+            this.plugin.dateIndex,
             this.app.vault,
             this.app.metadataCache,
             plugin.settings.openAIApiKey
@@ -385,23 +394,22 @@ export class ChatSidebarView extends ItemView {
             // First, analyze the conversation continuity
             const conversationAnalysis = await this.analyzeConversationContinuity(message, loadingMessage);
             
-            // First, update the search results handling to properly merge explicit and semantic results
             loadingMessage.innerText = 'Searching notes...';
 
             // Get explicitly referenced notes first
             const explicitResults = await this.getExplicitlyReferencedNotes(message);
             
-            // Then get semantic search results
-            const semanticResults = await this.searchService.search(
+            // Then get date-aware search results (which includes semantic search)
+            const searchResults = await this.dateAwareSearchService.search(
                 conversationAnalysis.searchQuery
             );
 
             // Merge results, prioritizing explicit references
-            const searchResults = [
+            const mergedResults: (SearchResult | DateAwareSearchResult)[] = [
                 ...explicitResults,  // Explicit references come first
-                ...semanticResults.filter(result => 
-                    // Only include semantic results that aren't already included as explicit references
-                    result.score > 0.75 && !explicitResults.some(explicit => explicit.id === result.id)
+                ...searchResults.filter(result => 
+                    // Only include results that aren't already included as explicit references
+                    !explicitResults.some(explicit => explicit.id === result.id)
                 )
             ];
 
@@ -409,7 +417,7 @@ export class ChatSidebarView extends ItemView {
             loadingMessage.innerText = 'Processing notes...';
             const referencedNotes = new Set<string>();
             
-            const context = searchResults
+            const context = mergedResults
                 .map(result => {
                     referencedNotes.add(result.id);  // Add main note
                     const relevanceIndicator = result.explicit ? "Explicitly Referenced" : 
@@ -418,6 +426,10 @@ export class ChatSidebarView extends ItemView {
                     let contextText = `[File: ${result.id}] (${relevanceIndicator}`;
                     if (!result.explicit) {
                         contextText += `, score: ${result.score.toFixed(3)}`;
+                    }
+                    const dateAwareResult = result as DateAwareSearchResult;
+                    if (dateAwareResult.dateRelevance?.matchType && dateAwareResult.dateRelevance?.date) {
+                        contextText += `, date match: ${dateAwareResult.dateRelevance.matchType} at ${new Date(dateAwareResult.dateRelevance.date).toLocaleString()}`;
                     }
                     if (result.keywordScore) {
                         contextText += `, keyword relevance: ${result.keywordScore.toFixed(3)}`;
@@ -430,7 +442,7 @@ export class ChatSidebarView extends ItemView {
                     // Add linked contexts if available
                     if (result.linkedContexts && result.linkedContexts.length > 0) {
                         contextText += '\n\nRelevant content from linked notes:\n';
-                        result.linkedContexts.forEach((linked) => {
+                        result.linkedContexts.forEach((linked: LinkedContext) => {
                             referencedNotes.add(linked.notePath);  // Add linked note
                             contextText += `\nFrom [[${linked.notePath}]] (relevance: ${linked.relevance.toFixed(3)}, link distance: ${linked.linkDistance}):
 ${linked.context}\n`;
