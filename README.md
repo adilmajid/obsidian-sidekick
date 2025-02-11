@@ -25,7 +25,7 @@ If you'd like to use Sidekick during its alpha, contact [@adilmajid on Twitter](
 - None known currently
 
 ### Shipped
-- [x] o3-mini
+- [x] o3-mini integration
 - [x] Give LLM basic context, including today's date
 - [x] Don't auto-scroll
 - [x] Suggested prompts appear in new conversations and user can customize them
@@ -37,6 +37,7 @@ If you'd like to use Sidekick during its alpha, contact [@adilmajid on Twitter](
 - [x] Give the model ability to add to its own memory
 - [x] Add a section for user to add personal details to provide to model as context
 - [x] Allow user to modify system prompt
+- [x] Update design to be more minimal + work with Obsidian theme colors
 
 ## Terms & Disclaimer
 
