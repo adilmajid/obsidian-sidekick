@@ -6,6 +6,7 @@ export interface ChatSidebarSettings {
     model: string;
     personalInfo: string;
     memory: string;
+    lastMemoryCleanup: number;
     excludedFolders: string[];
     suggestedPrompts: string[];
     elevenLabsApiKey: string;
@@ -77,6 +78,7 @@ When synthesizing information:
 
 Remember: Each new question is an opportunity to discover new connections in the user's notes, even if it seems related to the previous conversation.`,
     memory: "",
+    lastMemoryCleanup: 0,
     excludedFolders: [],
     suggestedPrompts: [
         "What are three small wins I can aim for today?",

@@ -180,16 +180,22 @@ export class ChatSidebarSettingTab extends PluginSettingTab {
 
         const embeddings = await getAllEmbeddings();
         const markdownFiles = this.app.vault.getMarkdownFiles();
-        const totalNotes = markdownFiles.length;
+        // Filter out files from excluded folders
+        const includedFiles = markdownFiles.filter(file => 
+            !this.plugin.settings.excludedFolders.some(folder => 
+                file.path.startsWith(folder)
+            )
+        );
+        const totalIncludedNotes = includedFiles.length;
         
         // Only count embeddings that correspond to existing files
         const validEmbeddings = embeddings.filter(embedding => 
-            markdownFiles.some(file => file.path === embedding.id)
+            includedFiles.some(file => file.path === embedding.id)
         );
 
         new Setting(containerEl)
             .setName('Indexing status')
-            .setDesc(`${validEmbeddings.length} of ${totalNotes} notes indexed`)
+            .setDesc(`${validEmbeddings.length} of ${totalIncludedNotes} notes indexed`)
             .addButton(button => {
                 if (this.plugin.isIndexing) {
                     button
@@ -198,7 +204,7 @@ export class ChatSidebarSettingTab extends PluginSettingTab {
                         .onClick(() => {
                             this.plugin.stopEmbedding();
                         });
-                } else if (validEmbeddings.length < totalNotes) {
+                } else if (validEmbeddings.length < totalIncludedNotes) {
                     button
                         .setButtonText('Index un-indexed notes')
                         .onClick(() => {

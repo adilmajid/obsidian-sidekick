@@ -114,6 +114,7 @@ export class ChatSidebarView extends ItemView {
 
     async onOpen() {
         await this.loadThreads();
+        await this.checkAndCleanupMemory();
         
         this.containerEl.empty();
         this.containerEl.addClass('chat-sidebar-container');
@@ -303,7 +304,9 @@ export class ChatSidebarView extends ItemView {
                         1. A follow-up/clarification of the previous topic
                         2. A new, unrelated topic
                         
-                        Respond in JSON format:
+                        IMPORTANT: Return ONLY a raw JSON object with no markdown formatting, no code blocks, and no additional text.
+                        
+                        Required JSON format:
                         {
                             "isFollowUp": boolean,
                             "explanation": string,
@@ -392,17 +395,63 @@ export class ChatSidebarView extends ItemView {
             await this.saveThreads();
 
             // First, analyze the conversation continuity
-            const conversationAnalysis = await this.analyzeConversationContinuity(message, loadingMessage);
+            let conversationAnalysis = {
+                isFollowUp: false,
+                searchQuery: message,
+                context: message
+            };
+            let retryCount = 0;
+            const maxRetries = 2;  // Will try up to 3 times total (initial + 2 retries)
+
+            while (retryCount <= maxRetries) {
+                try {
+                    conversationAnalysis = await this.analyzeConversationContinuity(message, loadingMessage);
+                    break;  // If successful, exit the retry loop
+                } catch (error) {
+                    console.error(`Error analyzing conversation (attempt ${retryCount + 1}/${maxRetries + 1}):`, error);
+                    retryCount++;
+                    
+                    if (retryCount <= maxRetries) {
+                        // Wait a short time before retrying (500ms, 1000ms, etc.)
+                        await new Promise(resolve => setTimeout(resolve, 500 * retryCount));
+                        loadingMessage.innerText = `Retrying conversation analysis (attempt ${retryCount + 1})...`;
+                    } else {
+                        console.warn('All conversation analysis attempts failed, falling back to new topic');
+                        // Only fall back after all retries are exhausted
+                        conversationAnalysis = {
+                            isFollowUp: false,
+                            searchQuery: message,
+                            context: message
+                        };
+                    }
+                }
+            }
             
             loadingMessage.innerText = 'Searching notes...';
 
             // Get explicitly referenced notes first
-            const explicitResults = await this.getExplicitlyReferencedNotes(message);
+            let explicitResults: SearchResult[] = [];
+            try {
+                explicitResults = await this.getExplicitlyReferencedNotes(message);
+            } catch (error) {
+                console.error('Error getting explicit references:', error);
+            }
             
             // Then get date-aware search results (which includes semantic search)
-            const searchResults = await this.dateAwareSearchService.search(
-                conversationAnalysis.searchQuery
-            );
+            let searchResults: (SearchResult | DateAwareSearchResult)[] = [];
+            try {
+                searchResults = await this.dateAwareSearchService.search(
+                    conversationAnalysis.searchQuery
+                );
+            } catch (error) {
+                console.error('Error in date-aware search:', error);
+                // Try fallback to basic search if available
+                try {
+                    searchResults = await this.searchService.search(message);
+                } catch (innerError) {
+                    console.error('Error in fallback search:', innerError);
+                }
+            }
 
             // Merge results, prioritizing explicit references
             const mergedResults: (SearchResult | DateAwareSearchResult)[] = [
@@ -801,7 +850,6 @@ ${context}`;
         }
     }
 
-    // Fix the analyzeConversationForMemory method
     private async analyzeConversationForMemory(conversation: ChatMessage[]) {
         try {
             const response = await this.openai!.chat.completions.create({
@@ -809,29 +857,33 @@ ${context}`;
                 messages: [
                     {
                         role: "system",
-                        content: `You are a memory analyzer. Review this conversation and determine what should be remembered which is not already in the user's notes.
+                        content: `You are a highly selective memory analyzer. Your job is to identify ONLY the most important information about the user that should be remembered for future conversations.
 
 CURRENT MEMORY:
 ${this.plugin.settings.memory}
 
-Guidelines:
-1. Separate the user's query from the context sent to you from the retrieved notes. Look for information in the user's query which is NOT in the note context sent to you.
-   - Personal details (relationships, preferences, habits)
-   - Projects and work
-   - Connections between notes
-   - Important dates or facts
-2. Don't repeat information that's already in memory
-3. If you find contradictions with existing memory, update with the newer information
-4. Use [[note.md]] syntax when referencing notes
+RULES:
+1. Only suggest storing information that is:
+   - NOT present in the provided context
+   - Explicitly about the user (personal details, preferences, projects)
+   - Highly certain and clearly stated
+   - Important for future conversations
+2. NEVER store:
+   - Information from notes
+   - General knowledge
+   - Uncertain information
+   - Temporary or time-sensitive details
 
 Output Format:
-If you find new information: {"memory_update": "new information"}
-If information contradicts existing: {"memory_update": "CORRECTION: new correct information"}
-If no new information: {"memory_update": null}
+If you find critical new information: {"memory_update": "new information"}
+If you find information that should replace old info: {"memory_update": "CORRECTION: new correct information"}
+If nothing should be added: {"memory_update": null}
 
-Example updates:
-{"memory_update": "User's project [[Thesis.md]] has a deadline in June 2024"}
-{"memory_update": "CORRECTION: User's sister Sarah (previously noted as Jenny) enjoys hiking"}`
+Example valid updates:
+{"memory_update": "User's PhD thesis deadline is June 2024"}
+{"memory_update": "CORRECTION: User now works remotely full-time (previously was hybrid)"}
+
+IMPORTANT: Before suggesting any memory update, verify it does not appear anywhere in the provided context.`
                     },
                     ...conversation.map(msg => ({
                         role: msg.role,
@@ -839,7 +891,7 @@ Example updates:
                     }))
                 ],
                 temperature: 0.1,
-            }, { signal: this.currentRequest?.signal });  // Add signal here
+            });
 
             const memoryUpdate = response.choices[0].message.content;
             if (memoryUpdate && memoryUpdate.includes('"memory_update"')) {
@@ -1210,6 +1262,57 @@ Example updates:
         } else {
             // If we don't have a cached position, fall back to appending at the end
             await this.appendToCurrentNote(content);
+        }
+    }
+
+    private async checkAndCleanupMemory() {
+        const FOUR_WEEKS = 28 * 24 * 60 * 60 * 1000; // 28 days in milliseconds
+        const now = Date.now();
+        
+        if (now - this.plugin.settings.lastMemoryCleanup < FOUR_WEEKS) {
+            return;
+        }
+
+        try {
+            const response = await this.openai!.chat.completions.create({
+                model: "gpt-4-0125-preview",
+                messages: [
+                    {
+                        role: "system",
+                        content: `You are a memory maintenance system. Review and clean up the user's memory storage.
+
+Current memory:
+${this.plugin.settings.memory}
+
+CLEANUP RULES:
+1. Remove any outdated or no longer relevant information
+2. Remove duplicate or redundant information
+3. Merge related pieces of information
+4. Keep the sections organized:
+   PERSONAL:
+   PREFERENCES:
+   PROJECTS:
+
+5. Keep ONLY the most important, long-term information about the user
+
+Output the cleaned memory in the same format. If no cleanup is needed, output the original memory unchanged.`
+                    }
+                ],
+                temperature: 0.1,
+            });
+
+            const cleanedMemory = response.choices[0].message.content;
+            if (cleanedMemory && cleanedMemory.trim() !== this.plugin.settings.memory.trim()) {
+                this.plugin.settings.memory = cleanedMemory;
+            }
+            
+            this.plugin.settings.lastMemoryCleanup = now;
+            await this.plugin.saveSettings();
+        } catch (error) {
+            console.error('Error during memory cleanup:', error);
+            // On error, just update the timestamp to prevent repeated cleanup attempts
+            this.plugin.settings.lastMemoryCleanup = now;
+            await this.plugin.saveSettings();
         }
     }
 }
