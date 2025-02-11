@@ -12,6 +12,8 @@ import { DateService } from './services/DateService';
 
 export const VIEW_TYPE_CHAT_SIDEBAR = 'chat-sidebar-view';
 
+const MAX_CONTEXT_LENGTH = 400000; // Maximum length of context string (targeting ~100k tokens)
+
 class NoteLinkSuggestModal extends SuggestModal<TFile> {
     private textInput: HTMLTextAreaElement;
     private chooseCallback: (file: TFile) => void;
@@ -491,16 +493,25 @@ export class ChatSidebarView extends ItemView {
                     // Add linked contexts if available
                     if (result.linkedContexts && result.linkedContexts.length > 0) {
                         contextText += '\n\nRelevant content from linked notes:\n';
-                        result.linkedContexts.forEach((linked: LinkedContext) => {
-                            referencedNotes.add(linked.notePath);  // Add linked note
-                            contextText += `\nFrom [[${linked.notePath}]] (relevance: ${linked.relevance.toFixed(3)}, link distance: ${linked.linkDistance}):
+                        for (const linked of result.linkedContexts) {
+                            // Check if adding this linked context would exceed the length limit
+                            const linkedText = `\nFrom [[${linked.notePath}]] (relevance: ${linked.relevance.toFixed(3)}, link distance: ${linked.linkDistance}):
 ${linked.context}\n`;
-                        });
+                            if ((contextText + linkedText).length > MAX_CONTEXT_LENGTH) {
+                                break;
+                            }
+                            referencedNotes.add(linked.notePath);  // Add linked note
+                            contextText += linkedText;
+                        }
                     }
-
                     return contextText;
                 })
                 .join('\n\n==========\n\n');
+
+            // Truncate context if it exceeds maximum length
+            const truncatedContext = context.length > MAX_CONTEXT_LENGTH 
+                ? context.slice(0, MAX_CONTEXT_LENGTH) + "\n\n[Note: Context was truncated due to length limits]" 
+                : context;
 
             // Update system prompt to include conversation analysis
             const systemPrompt = `${this.plugin.settings.systemPrompt}
@@ -533,9 +544,9 @@ Remember to:
 3. When referencing notes, always use the double bracket format: [[note name]]
 4. Use the provided current date/time when answering temporal questions (e.g., "today", "this month", etc.)
 
-Here are the relevant notes:
+Here are the relevant notes${context.length > MAX_CONTEXT_LENGTH ? ' (truncated due to length)' : ''}:
 
-${context}`;
+${truncatedContext}`;
 
             const apiMessages: ChatCompletionMessageParam[] = [
                 { role: 'system', content: systemPrompt },
