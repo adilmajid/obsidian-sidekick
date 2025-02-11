@@ -100,6 +100,7 @@ export interface ModelOption {
 }
 
 export const AVAILABLE_MODELS: ModelOption[] = [
+    { value: 'o3-mini', label: 'o3-mini' },
     { value: 'chatgpt-4o-latest', label: 'GPT-4o' },
     { value: 'gpt-4o-mini-2024-07-18', label: 'GPT-4o mini' },
     { value: 'gpt-4-turbo-2024-04-09', label: 'GPT-4 Turbo' },

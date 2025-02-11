@@ -466,6 +466,8 @@ export class ChatSidebarView extends ItemView {
 
             // Format context from all results
             loadingMessage.innerText = 'Processing notes...';
+            await new Promise(resolve => setTimeout(resolve, 400)); // Add delay
+
             const referencedNotes = new Set<string>();
             
             const context = mergedResults
@@ -557,14 +559,29 @@ ${truncatedContext}`;
             ];
 
             loadingMessage.innerText = 'Sending to OpenAI...';
+            await new Promise(resolve => setTimeout(resolve, 400)); // Add delay
 
             // Get streaming response from OpenAI with abort signal
-            const response = await this.openai!.chat.completions.create({
+            const response = this.openai!.chat.completions.create({
                 model: this.plugin.settings.model,
                 messages: apiMessages,
-                temperature: 0.7,
-                stream: true
-            }, { signal: this.currentRequest?.signal });  // Add signal here for the main chat response
+                ...(this.plugin.settings.model === 'o3-mini' ? {
+                    reasoning_effort: 'medium', // Can be 'low', 'medium', or 'high'
+                    stream: true
+                } : {
+                    temperature: 0.7,
+                    stream: true
+                })
+            }, { signal: this.currentRequest?.signal });
+
+            // For o3-mini, update the loading message while waiting for the response
+            if (this.plugin.settings.model === 'o3-mini') {
+                await new Promise(resolve => setTimeout(resolve, 600)); // Add delay
+                loadingMessage.innerText = 'o3-mini is thinking...';
+            }
+
+            // Wait for the response
+            const streamingResponse = await response;
 
             // Create message container for assistant's response
             const assistantMessage = chatDisplay.createDiv({ cls: 'chat-message assistant-message' });
@@ -577,7 +594,7 @@ ${truncatedContext}`;
             const markdownRenderingDiv = assistantMessage.createDiv();
 
             // Handle streaming response
-            for await (const chunk of response) {
+            for await (const chunk of streamingResponse) {
                 const content = chunk.choices[0]?.delta?.content || '';
                 fullResponse += content;
                 
