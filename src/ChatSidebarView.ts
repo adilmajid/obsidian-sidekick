@@ -263,7 +263,7 @@ export class ChatSidebarView extends ItemView {
         }
     }
 
-    // Add this helper method to analyze conversation continuity
+    // Fix the analyzeConversationContinuity method
     private async analyzeConversationContinuity(newMessage: string, loadingMessage: HTMLElement): Promise<{
         isFollowUp: boolean;
         searchQuery: string;
@@ -306,7 +306,7 @@ export class ChatSidebarView extends ItemView {
                     { role: "user", content: newMessage }
                 ],
                 temperature: 0.1,
-            });
+            }, { signal: this.currentRequest?.signal });  // Add signal here
 
             const analysis = JSON.parse(response.choices[0].message.content!);
             
@@ -492,7 +492,7 @@ ${context}`;
                 messages: apiMessages,
                 temperature: 0.7,
                 stream: true
-            }, { signal: this.currentRequest.signal });
+            }, { signal: this.currentRequest?.signal });  // Add signal here for the main chat response
 
             // Create message container for assistant's response
             const assistantMessage = chatDisplay.createDiv({ cls: 'chat-message assistant-message' });
@@ -778,6 +778,7 @@ ${context}`;
         }
     }
 
+    // Fix the analyzeConversationForMemory method
     private async analyzeConversationForMemory(conversation: ChatMessage[]) {
         try {
             const response = await this.openai!.chat.completions.create({
@@ -815,7 +816,7 @@ Example updates:
                     }))
                 ],
                 temperature: 0.1,
-            });
+            }, { signal: this.currentRequest?.signal });  // Add signal here
 
             const memoryUpdate = response.choices[0].message.content;
             if (memoryUpdate && memoryUpdate.includes('"memory_update"')) {
@@ -945,6 +946,7 @@ Example updates:
         });
     }
 
+    // Fix the createNewNote method
     private async createNewNote(content: string) {
         try {
             // Get title suggestion from LLM
@@ -969,7 +971,7 @@ Example updates:
                     }
                 ],
                 temperature: 0.3,
-            });
+            }, { signal: this.currentRequest?.signal });  // Add signal here
 
             const suggestedTitle = titleResponse.choices[0].message.content?.trim() || 'Chat Export';
             const fileName = `${suggestedTitle}.md`;
